@@ -1,0 +1,15 @@
+node_modules/
+dist/
+bridge/bundle/
+coverage/
+.vite/
+*.tsbuildinfo
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+.browsermcp/
+.build/
+output/
+.playwright-cli/

@@ -1,0 +1,32 @@
+{
+  "name": "@browsermcp/web",
+  "version": "0.1.0",
+  "description": "Framework-independent BrowserMCP web runtime library.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "npm run clean && tsc -p tsconfig.build.json",
+    "clean": "node --input-type=module --eval \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true });\"",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:unit": "vitest run"
+  },
+  "dependencies": {
+    "@browsermcp/protocol": "0.1.0"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,43 @@
+{
+  "name": "@browsermcp/bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Cross-platform, loopback-only MCP to browser bridge for BrowserMCP.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "browsermcp-bridge": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "npm run clean && tsc -p tsconfig.build.json",
+    "clean": "node --input-type=module --eval \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true });\"",
+    "dev": "npm run build && node dist/cli.js",
+    "start": "node dist/cli.js",
+    "typecheck": "tsc -p tsconfig.json --pretty false",
+    "test": "vitest run --config vitest.config.ts",
+    "test:unit": "vitest run --config vitest.config.ts tests/unit",
+    "pretest:integration": "npm run build",
+    "test:integration": "vitest run --config vitest.config.ts tests/integration"
+  },
+  "dependencies": {
+    "@browsermcp/protocol": "0.1.0",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "ws": "8.21.1"
+  },
+  "devDependencies": {
+    "@types/ws": "8.18.1"
+  }
+}

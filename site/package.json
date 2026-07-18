@@ -1,0 +1,25 @@
+{
+  "name": "@browsermcp/site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit --pretty false",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/docs.test.ts tests/i18n.test.ts tests/runtime.test.ts tests/storage-indexeddb.test.ts",
+    "test:integration": "vitest run tests/docs-mcp.integration.test.ts"
+  },
+  "dependencies": {
+    "@browsermcp/protocol": "0.1.0",
+    "@browsermcp/web": "0.1.0"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "6.2.5",
+    "vite": "8.1.5"
+  }
+}

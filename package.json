@@ -1,0 +1,54 @@
+{
+  "name": "browsermcp-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Use the browser as a local MCP runtime through a reusable web library and cross-platform bridge.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
+  },
+  "packageManager": "npm@11.6.0",
+  "workspaces": [
+    "packages/protocol",
+    "packages/web",
+    "bridge",
+    "site"
+  ],
+  "scripts": {
+    "build": "npm run build:bridge:bundle && npm run build:site",
+    "build:bridge": "npm run build:protocol && npm run build --workspace @browsermcp/bridge",
+    "build:bridge:bundle": "npm run build:bridge && node scripts/bundle-bridge.mjs",
+    "build:libs": "npm run build:web",
+    "build:protocol": "npm run build --workspace @browsermcp/protocol",
+    "build:site": "npm run build:libs && npm run build --workspace @browsermcp/site",
+    "build:web": "npm run build:protocol && npm run build --workspace @browsermcp/web",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
+    "predev:bridge": "npm run build:protocol",
+    "dev:bridge": "npm run dev --workspace @browsermcp/bridge",
+    "predev:site": "npm run build:libs",
+    "dev:site": "npm run dev --workspace @browsermcp/site",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint . && npm run lint:scripts",
+    "lint:scripts": "node --check scripts/generate-local-tls.mjs && node --check scripts/bundle-bridge.mjs",
+    "prestart:bridge": "npm run build:bridge",
+    "start:bridge": "npm run start --workspace @browsermcp/bridge",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:integration": "npm run build && npm run test:integration --workspace @browsermcp/bridge && npm run test:integration --workspace @browsermcp/site && vitest run --config vitest.integration.config.ts",
+    "test:unit": "npm run build:libs && npm run test:unit --workspaces --if-present",
+    "tls:generate": "node scripts/generate-local-tls.mjs",
+    "typecheck": "npm run build:libs && npm run build:bridge && tsc -p tsconfig.json --pretty false && npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.4",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "@types/node": "26.1.1",
+    "@types/ws": "8.18.1",
+    "rolldown": "1.1.5",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10",
+    "ws": "8.21.1"
+  }
+}
