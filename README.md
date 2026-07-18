@@ -29,6 +29,8 @@ not need a token field.
 This repository includes a GitHub Pages workflow that verifies the complete workspace and deploys
 only `site/dist` after a push to `main`. It does **not** publish packages or releases,
 sign/notarize an app, publish Bridge credentials, or expose the local Bridge externally.
+The deployed site is
+[`https://masashi-desu.github.io/BrowserMCP/`](https://masashi-desu.github.io/BrowserMCP/).
 
 The canonical product contract is [`docs/specification.md`](./docs/specification.md), together
 with the scoped normative documents it identifies under `docs`. Those documents supersede the
@@ -270,6 +272,13 @@ rebuilds the site with that exact `VITE_BASE_PATH`, uploads only `site/dist`, an
 protected `github-pages` environment. The deploy job has only `pages: write` and `id-token: write`;
 the build job has read-only repository access. GitHub Pages must use **GitHub Actions** as its
 publishing source.
+
+[Deployment run 29643866925](https://github.com/Masashi-desu/BrowserMCP/actions/runs/29643866925)
+passed the full gate and published the repository site. An isolated installed-Chrome check then
+completed public HTTPS → loopback WSS → exact-Origin approval → browser-hosted Docs Tool → official
+MCP SDK response. The verification used context-scoped TLS and Local Network Access exceptions and
+did not modify the OS trust store; the exact scope is recorded in
+[`docs/verification.md`](./docs/verification.md).
 
 ## Site and Docs MCP
 

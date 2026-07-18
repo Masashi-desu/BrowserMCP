@@ -153,6 +153,11 @@ gate for pushes to `main`, reads GitHub Pages' configured `base_path`, rebuilds 
 Configure the repository's Pages source as **GitHub Actions**. The workflow contains no Bridge,
 MCP, TLS, or approval credential.
 
+The repository site is published at
+[`https://masashi-desu.github.io/BrowserMCP/`](https://masashi-desu.github.io/BrowserMCP/).
+[Deployment run 29643866925](https://github.com/Masashi-desu/BrowserMCP/actions/runs/29643866925)
+passed the complete gate and deployment.
+
 ## Quality commands
 
 ```sh
@@ -188,11 +193,13 @@ real TLS/browser/Bridge path after deployment:
    `tools/register-tool`. Expect a browser-produced result containing the exact source page and section.
 8. Disconnect. Expect the site runtime capabilities to disappear from the Bridge without affecting another app.
 
-Browser-specific certificate prompts, Chrome LNA UI, Safari mixed-content behavior, and a native MCP client's
-live round trip require that real environment; automated tests cover the corresponding policy and protocol paths.
-Safari, Chrome, Edge, and Firefox published-site checks are all **NOT RUN** in this work. The per-browser
-unverified reason, required environment, reproducible steps, and expected result are recorded in
-[`docs/verification.md`](../docs/verification.md); Node WSS integration is not counted as a browser result.
+The published Pages site completed this flow in an isolated installed-Chrome context: after a
+context-scoped Local Network Access grant, it reached the TLS loopback Bridge, requested and
+received exact-Origin approval, registered 19/23/4, and served `docs_get_section` to an official
+MCP SDK client. The disposable context ignored loopback TLS errors, so OS trust installation and
+interactive permission UI remain unverified; Safari, Edge, and Firefox are also **NOT RUN**.
+The per-browser scope, required environment, reproducible steps, and expected result are recorded
+in [`docs/verification.md`](../docs/verification.md).
 
 ## Known constraints
 

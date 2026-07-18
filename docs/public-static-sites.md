@@ -9,6 +9,15 @@ This repository deploys the documentation site through a least-privilege GitHub 
 `main`. The same Web library and WSS requirements apply to every HTTPS static host; the Pages
 workflow is only this repository's hosting automation, not a BrowserMCP protocol dependency.
 
+The repository deployment is live at
+[`https://masashi-desu.github.io/BrowserMCP/`](https://masashi-desu.github.io/BrowserMCP/).
+An isolated installed-Chrome verification completed the credential-free health probe, context-scoped
+Local Network Access grant, exact-Origin approval, WSS registration of 19/23/4 capabilities, and an
+official MCP SDK invocation of the browser-hosted `docs_get_section` Tool. The disposable context
+ignored loopback TLS errors instead of changing the OS trust store, so manual CA import and the
+interactive browser/OS permission UI remain separate operational checks. The complete evidence and
+browser matrix are recorded in [`verification.md`](./verification.md).
+
 ## Why WSS is the portable path
 
 GitHub Pages serves sites over HTTPS. Although loopback URLs are potentially trustworthy in web

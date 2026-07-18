@@ -1383,10 +1383,10 @@ export const docs: readonly DocPage[] = [
         id: "verification-status",
         title: "Real-environment verification status",
         summary:
-          "Required automated protocol paths are covered; live browser, TLS/LNA UI, and native-client checks remain environment-dependent.",
+          "Automated gates and the published Pages MCP round trip pass; manual trust UI and additional browsers remain environment-dependent.",
         content: [
-          "Node unit and integration tests cover structured Docs evaluation, registration, validated Bridge Protocol round trips, secure URL policy, subpath build logic, storage limits, Worker cancellation, and capability status. They do not constitute a real-browser GitHub Pages verification.",
-          "The Pages pipeline and each live-browser result are recorded separately in docs/verification.md. A deployed static artifact alone does not verify local MCP: the browser must trust the loopback CA, allow applicable Local Network Access, request access, and receive exact-Origin approval in the Bridge.",
+          "Node unit and integration tests cover structured Docs evaluation, registration, validated Bridge Protocol round trips, secure URL policy, subpath build logic, storage limits, Worker cancellation, and capability status. GitHub Pages run 29643866925 also passed the complete quality gate and deployed the public site.",
+          "An isolated installed-Chrome session loaded https://masashi-desu.github.io/BrowserMCP/, reached the loopback TLS Bridge after a context-scoped Local Network Access grant, received exact-Origin approval, registered 19 Tools, 23 Resources, and four Prompts, and served docs_get_section to the official MCP SDK client. The context ignored loopback TLS errors, so manual OS CA trust, interactive permission UI, Safari, Edge, and Firefox remain unverified and are tracked in docs/verification.md.",
         ],
         kind: "status",
         status: "partial",

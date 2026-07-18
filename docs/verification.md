@@ -38,7 +38,8 @@ The repository-root commands below completed successfully on the environment abo
 | Native macOS tests | `xcodebuild -project macOS/BrowserMCPApp.xcodeproj -scheme BrowserMCPApp -configuration Debug -destination 'platform=macOS,arch=arm64' -derivedDataPath .build/xcode CODE_SIGNING_ALLOWED=NO test` | 10 passed on Apple Silicon macOS |
 | Native macOS build | `xcodebuild -project macOS/BrowserMCPApp.xcodeproj -scheme BrowserMCPApp -configuration Debug -derivedDataPath .build/xcode CODE_SIGNING_ALLOWED=NO build` | Unsigned 2.0 MB arm64 Debug `BrowserMCP.app` built with the Bridge bundle |
 | Pages base build | `VITE_BASE_PATH=/BrowserMCP/ npm run build:site` | Passed; assets emitted below the explicit repository base |
-| Pages workflow definition | `.github/workflows/pages.yml` | Pinned actions, read-only build permissions, full `npm run check`, Pages `base_path`, artifact-only upload, separate OIDC deploy job; remote execution pending |
+| Pages workflow and deployment | `.github/workflows/pages.yml` | Passed in [run 29643866925](https://github.com/Masashi-desu/BrowserMCP/actions/runs/29643866925): pinned actions, read-only build permissions, full `npm run check`, Pages `base_path`, artifact-only upload, and a separate OIDC deploy job |
+| Published Pages HTTP check | `curl -I https://masashi-desu.github.io/BrowserMCP/` | Passed: HTTP/2 200 over HTTPS with HSTS; HTML assets resolve below `/BrowserMCP/` |
 | Dependency audit | `npm audit --audit-level=low` | 0 vulnerabilities |
 
 ### Local built-site browser check
@@ -99,15 +100,25 @@ as the visible docs.
 
 ### Published GitHub Pages and browser permission UI
 
-- **Implementation status:** Implemented. The site has relative/static assets, hash routing,
-  HTTPS-aware WSS defaults, exact Bridge URL validation, a credential-free LNA health probe,
-  connection diagnostics, the Node WSS round trip described above, and a `main`-triggered GitHub
-  Pages workflow. A remote workflow run and real-browser Pages MCP check remain unverified at this
-  checkpoint.
-- **Why it is not verified here:** This checkout has no Git remote and the installed `gh` CLI
-  credential is invalid, so it cannot push or enable/observe Pages. A real top-level Pages MCP
-  check also requires trusted loopback WSS and a Local Network Access decision in the selected
-  browser context.
+- **Implementation status:** Deployed and verified at
+  [`https://masashi-desu.github.io/BrowserMCP/`](https://masashi-desu.github.io/BrowserMCP/).
+  GitHub Actions [run 29643866925](https://github.com/Masashi-desu/BrowserMCP/actions/runs/29643866925)
+  passed its full quality gate and Pages deployment. An isolated installed-Chrome session loaded
+  the public HTTPS Origin, reached the TLS loopback `/health` endpoint after Local Network Access
+  was granted, submitted an approval request, and connected after the Bridge operator approved the
+  exact observed Origin `https://masashi-desu.github.io`.
+- **Observed MCP result:** The public page registered 19 Tools, 23 Resources, and four Prompts. An
+  official MCP SDK client initialized through the common HTTPS MCP endpoint and invoked the
+  browser-hosted `docs_get_section` Tool successfully. The result identified Origin
+  `https://masashi-desu.github.io`, page `security-model`, section `pairing`, and source
+  `docs/specification.md`; the page recorded the successful invocation in recent execution
+  history.
+- **Verification boundary:** The disposable Chrome context ignored loopback TLS errors and received
+  `local-network-access` permission programmatically. This verified the published Origin, WSS
+  transport, approval boundary, capability registration, and MCP round trip without changing the
+  OS Keychain or the user's browser profile. It does not count as verification of manual CA import,
+  the interactive LNA prompt, or persistent browser policy. Before permission, the intentional
+  negative probe was denied by Chrome; the successful path added no new console errors.
 - **Required environment:** A public GitHub Pages repository URL or equivalent top-level HTTPS
   static host, the generated CA explicitly trusted in a disposable/current Safari, Chrome,
   Firefox, or Edge profile, the local TLS Bridge, and permission to access loopback.
@@ -128,10 +139,10 @@ The following table is the browser-specific public-static-site verification reco
 [`public-static-sites.md`](./public-static-sites.md). None of these rows is implied by the Node WSS
 integration or a static Vite build.
 
-| Browser | Status | Unverified reason and required environment | Reproducible procedure | Expected result |
+| Browser | Status | Verification scope or unverified reason | Reproducible procedure | Expected result |
 | --- | --- | --- | --- | --- |
 | Safari | **NOT RUN** | Needs a published top-level HTTPS site, generated CA trusted through macOS Keychain, and a disposable/current Safari profile. Trust mutation was not requested. | Follow `public-static-sites.md`; open `#/connection`; verify WSS (never HTTPS→WS), run `/health`, request approval, approve the exact Origin in Bridge, list 19/23/4, invoke `docs_get_section`, then disconnect. | No mixed-content/certificate error; one active session; source-bearing result returns; disconnect removes routes. |
-| Chrome | **NOT RUN** | Needs current Chrome, a published HTTPS Origin, trusted CA, Chrome `loopback-network` permission, and macOS Local Network permission. | Run credential-free `/health` first (fetch-like requests are permission-gated from Chrome 142), approve prompts, request access, approve the exact Origin in Bridge, then connect WSS (WebSockets are permission-gated from Chrome 147) and invoke a Docs Tool. | Health exposes no data; permission precedes WSS; approval creates one session; rejection or expiry creates none. |
+| Chrome | **PASSED (isolated)** | Installed Chrome loaded the published Pages Origin in a disposable automation context. Context-scoped TLS bypass and programmatic LNA grant were used; OS trust installation and interactive permission UI remain NOT RUN. | The context ran the credential-free `/health` probe, requested access, approved the exact Origin in the authenticated Bridge UI/API, connected WSS, registered 19/23/4, and served `docs_get_section` to the official MCP SDK client. | Achieved: health exposed no data, approval created one session, and a source-bearing browser result returned through MCP. |
 | Edge | **NOT RUN** | Needs current Edge/Chromium, published HTTPS Origin, trusted CA, browser `loopback-network`, and macOS Local Network permission. | Repeat the Chrome sequence in an isolated Edge profile and approve its exact Origin request. | Same WSS registration/invocation/rejection/cleanup results as Chrome; policy-managed denial is reported as an environment constraint. |
 | Firefox | **NOT RUN** | Needs current Firefox, a published HTTPS Origin, OS/root-store trust enabled for the generated CA, and any Firefox/OS local-network decision. | Confirm CA trust without an exception, run `/health`, request access, approve the exact Origin in Bridge, invoke `docs_get_section`, and disconnect. | No TLS exception; registration and invocation succeed if local-network policy permits; disconnect removes routes. |
 
@@ -240,9 +251,9 @@ integration or a static Vite build.
 | `/site` major-language i18n | Met | Nine complete UI catalogs and 19-page/68-section technical-prose overlays, canonical English code/identifier boundary, browser-language resolution, explicit persisted selector, Arabic RTL, localized Docs aliases, unit/integration tests, and isolated-browser verification |
 | Entire `/site` is BrowserMCP-enabled | Met | One lifetime controller registers every site capability |
 | `/site` uses repository Web library | Met | Workspace dependency and `BrowserMCP` controller import |
-| `/site` connects to repository Bridge | Met locally | Isolated headed Chromium submitted an approval request, received approval, registered 19/23/4, and served a Docs MCP invocation; published HTTPS run remains pending |
-| Public HTTPS static app can use local MCP | Implemented; external verification pending | WSS/LNA policy and Node transport test exist; the published top-level browser run is pending |
-| GitHub Pages subpath/HTTPS compatibility | Implemented; remote run pending | Relative assets/hash routes, explicit-base build, and least-privilege `main` deployment workflow exist; push/deployment is blocked by absent remote and invalid `gh` auth |
+| `/site` connects to repository Bridge | Met locally and publicly | Local and published isolated-Chrome runs submitted approval requests, received exact-Origin approval, registered 19/23/4, and served Docs MCP invocations |
+| Public HTTPS static app can use local MCP | Met in isolated Chrome | The Pages Origin completed health/LNA, WSS, approval, registration, and an official MCP SDK Tool invocation; manual CA trust and interactive permission UI remain explicitly unverified |
+| GitHub Pages subpath/HTTPS compatibility | Met | Relative assets/hash routes and Pages-provided base deployed successfully at the repository URL in run 29643866925 |
 | Docs MCP is practically useful | Met | Structured corpus and 11 specialized Docs Tools |
 | Docs MCP evaluation passes | Met | All ten required cases plus exact source/section assertions |
 | Major unit tests exist | Met | Passing workspace unit suites |
@@ -258,7 +269,7 @@ integration or a static Vite build.
 | Build succeeds | Met | Protocol, Web, Bridge, Site, unsigned native macOS app, and explicit Pages base build |
 | Unimplemented work is explicit | Met | README/site Roadmap and constraint sections |
 | Known constraints are explicit | Met | Root/package/site docs and environment-dependent section above |
-| GitHub Pages deployment pipeline | Implemented; remote run pending | Pinned GitHub actions, full quality gate, Pages-provided base, artifact-only upload, least-privilege OIDC deploy job |
+| GitHub Pages deployment pipeline | Met | Pinned GitHub actions, full quality gate, Pages-provided base, artifact-only upload, and least-privilege OIDC deploy job passed in run 29643866925 |
 | No unauthorized publication or external Bridge | Met | Pages may publish only `site/dist`; no package/release, credential/private-key, signed app, cloud relay, or externally bound Bridge is published |
 
 The migration from the initial development plan to the canonical documentation set did not remove
