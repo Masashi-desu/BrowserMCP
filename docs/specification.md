@@ -39,8 +39,8 @@ must remain generic and must not contain business logic for any particular web a
 - `packages/web` owns the framework-independent declarative browser API, connection lifecycle,
   registration state, timeout/cancellation propagation, and browser-side protocol validation.
 - `bridge` owns loopback listeners, standard MCP termination, authentication, routing, limits,
-  conversion, session state, and the authenticated local status surface. Its CLI and configuration
-  are OS-neutral across macOS, Linux, and Windows.
+  conversion, stateless request handling, notification subscriptions, and the authenticated local
+  status surface. Its CLI and configuration are OS-neutral across macOS, Linux, and Windows.
 - `macOS` owns only the native menu-bar lifecycle and management UI for the common Bridge process.
   It must not duplicate MCP conversion, routing, or web-application logic.
 - `site` is one BrowserMCP-enabled Vite application containing the landing page, documentation,
@@ -78,6 +78,16 @@ browser WebSocket/WSS endpoint, dynamically expose connected application capabil
 them atomically on disconnect. It must route calls and return results/errors without interpreting
 application business semantics.
 
+The MCP endpoint is modern-only and pinned to MCP revision `2026-07-28`. It accepts authenticated
+`POST` requests only. Every request carries the revision, client identity, and client capabilities
+in its MCP `_meta` envelope and is served by a fresh MCP server instance; `initialize`,
+`Mcp-Session-Id`, and the legacy `GET`/`DELETE` session lifecycle are not supported. The only
+durable MCP HTTP state is an explicitly opened `subscriptions/listen` SSE stream. Subscription
+count is bounded independently from ordinary concurrent requests. Registry changes publish
+list-changed events only to subscriptions whose filter requested that primitive. Discovery, list,
+and resource-read responses use private zero-TTL cache hints because the browser registry and
+browser-owned data can change at any time.
+
 The CLI must provide OS-neutral flags/configuration and one structured ready record containing the
 runtime endpoints and startup-scoped credentials. The Bridge targets current macOS, Linux, and
 Windows with external Node.js 24 or newer.
@@ -110,7 +120,7 @@ All requirements in [`security.md`](./security.md) are mandatory. At minimum:
 - authenticate MCP, admin, and browser surfaces with distinct startup/session credentials;
 - keep credentials out of URLs and persistent site storage;
 - validate all untrusted JSON at runtime and enforce message, request, registration, concurrency,
-  deadline, idle-session, and history limits;
+  deadline, MCP-subscription, browser-session, and history limits;
 - propagate timeout and cancellation and clean up atomically on disconnect;
 - redact known credential fields, bearer values, token patterns, and credential-bearing URLs, and
   never log handler result bodies;
@@ -181,7 +191,8 @@ artifact with the Pages-provided base path.
 - Common Bridge: Node.js 24+, npm 11+, current macOS/Linux/Windows target, IPv4 loopback.
 - Native app: macOS 14+, external Node.js 24+, current Xcode.
 - Browser: current stable Safari, Chrome/Chromium, Firefox, or Edge.
-- MCP client: Streamable HTTP and custom Authorization header support.
+- MCP client: MCP `2026-07-28`, Streamable HTTP, `subscriptions/listen`, and custom Authorization
+  header support.
 - Public HTTPS site: trusted loopback certificate and permission for applicable browser/OS local
   network policy.
 

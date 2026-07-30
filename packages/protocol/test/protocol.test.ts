@@ -426,6 +426,17 @@ describe("strict runtime validation", () => {
         },
       }),
     ).not.toThrow();
+    expect(() =>
+      createBridgeMessage("result", {
+        sessionId: session.id,
+        invocationId: "invocation-structured-array",
+        output: {
+          kind: "tool",
+          content: [],
+          structuredContent: ["modern", 2026, true],
+        },
+      }),
+    ).not.toThrow();
   });
 
   it("rejects unsupported envelopes by default and permits explicit negotiation parsing", () => {

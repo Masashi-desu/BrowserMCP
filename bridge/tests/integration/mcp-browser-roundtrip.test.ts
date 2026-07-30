@@ -1,11 +1,20 @@
 import { createBridgeMessage } from "@browsermcp/protocol";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { ErrorCode, ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  Client,
+  ProtocolErrorCode,
+  StreamableHTTPClientTransport,
+} from "@modelcontextprotocol/client";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { BrowserMcpBridge } from "../../src/bridge.js";
 import { BrowserPeer, MCP_TOKEN, testConfig } from "./helpers.js";
+
+function modernClient(name: string): Client {
+  return new Client(
+    { name, version: "1.0.0" },
+    { versionNegotiation: { mode: { pin: "2026-07-28" } } },
+  );
+}
 
 describe("MCP → Bridge → browser round trip", () => {
   let bridge: BrowserMcpBridge | undefined;
@@ -14,7 +23,6 @@ describe("MCP → Bridge → browser round trip", () => {
   let transport: StreamableHTTPClientTransport | undefined;
 
   afterEach(async () => {
-    if (transport?.sessionId) await transport.terminateSession().catch(() => undefined);
     await client?.close().catch(() => undefined);
     await browser?.close().catch(() => undefined);
     await bridge?.close();
@@ -24,7 +32,7 @@ describe("MCP → Bridge → browser round trip", () => {
     transport = undefined;
   });
 
-  it("initializes MCP, lists dynamic primitives, invokes all kinds, and unregisters", async () => {
+  it("discovers MCP, lists dynamic primitives, invokes all kinds, and unregisters", async () => {
     const origin = "https://runtime.example.test";
     bridge = new BrowserMcpBridge(testConfig());
     const address = await bridge.start();
@@ -42,6 +50,10 @@ describe("MCP → Bridge → browser round trip", () => {
         type: "object",
         properties: { value: { type: "string" } },
         required: ["value"],
+      },
+      outputSchema: {
+        type: "array",
+        items: { type: "string" },
       },
     });
     await browser.register(sessionId, {
@@ -61,15 +73,16 @@ describe("MCP → Bridge → browser round trip", () => {
     });
     expect(bridge.state).toMatchObject({
       apps: [{ id: "test-app", origin }],
-      sessions: { browser: 1, mcp: 0 },
+      sessions: { browser: 1 },
+      mcp: { protocolVersion: "2026-07-28", stateless: true },
     });
 
-    client = new Client({ name: "bridge-test-client", version: "1.0.0" });
+    client = modernClient("bridge-test-client");
     transport = new StreamableHTTPClientTransport(new URL(address.mcpEndpoint), {
       requestInit: { headers: { authorization: `Bearer ${MCP_TOKEN}` } },
     });
     await client.connect(transport);
-    expect(transport.sessionId).toBeTruthy();
+    expect(transport.sessionId).toBeUndefined();
 
     const tools = await client.listTools();
     expect(tools.tools).toHaveLength(1);
@@ -90,13 +103,13 @@ describe("MCP → Bridge → browser round trip", () => {
         output: {
           kind: "tool",
           content: [{ type: "text", text: "hello from browser" }],
-          structuredContent: { echoed: "hello" },
+          structuredContent: ["hello"],
         },
       }),
     );
     await expect(toolCall).resolves.toMatchObject({
       content: [{ type: "text", text: "hello from browser" }],
-      structuredContent: { echoed: "hello" },
+      structuredContent: ["hello"],
     });
 
     const resources = await client.listResources();
@@ -167,20 +180,21 @@ describe("MCP → Bridge → browser round trip", () => {
     });
 
     const toolListChanged = new Promise<void>((resolve) => {
-      client?.setNotificationHandler(ToolListChangedNotificationSchema, async () => resolve());
+      client?.setNotificationHandler("notifications/tools/list_changed", async () => resolve());
     });
+    await client.listen({ toolsListChanged: true });
     browser.send(createBridgeMessage("unregister", { sessionId, registrationId: "echo-tool" }));
     await browser.waitFor("unregistered");
     await toolListChanged;
     await expect(client.listTools()).resolves.toMatchObject({ tools: [] });
     await expect(client.callTool({ name: toolName, arguments: {} })).rejects.toMatchObject({
-      code: ErrorCode.InvalidParams,
+      code: ProtocolErrorCode.InvalidParams,
     });
     await expect(
       client.readResource({ uri: "browsermcp://missing/resource" }),
-    ).rejects.toMatchObject({ code: ErrorCode.InvalidParams });
+    ).rejects.toMatchObject({ code: ProtocolErrorCode.InvalidParams });
     await expect(client.getPrompt({ name: "missing_prompt" })).rejects.toMatchObject({
-      code: ErrorCode.InvalidParams,
+      code: ProtocolErrorCode.InvalidParams,
     });
   });
 
@@ -201,7 +215,7 @@ describe("MCP → Bridge → browser round trip", () => {
       inputSchema: {},
     });
 
-    client = new Client({ name: "bridge-error-client", version: "1.0.0" });
+    client = modernClient("bridge-error-client");
     transport = new StreamableHTTPClientTransport(new URL(address.mcpEndpoint), {
       requestInit: { headers: { authorization: `Bearer ${MCP_TOKEN}` } },
     });
@@ -229,9 +243,12 @@ describe("MCP → Bridge → browser round trip", () => {
     expect(JSON.stringify(bridge.state)).not.toContain("eyJhbGci");
 
     const controller = new AbortController();
-    const cancelledCall = client.callTool({ name, arguments: {} }, undefined, {
-      signal: controller.signal,
-    });
+    const cancelledCall = client.callTool(
+      { name, arguments: {} },
+      {
+        signal: controller.signal,
+      },
+    );
     const cancelledRejection = expect(cancelledCall).rejects.toThrow();
     const cancelledInvoke = await browser.waitFor("invoke");
     controller.abort();
@@ -291,7 +308,7 @@ describe("MCP → Bridge → browser round trip", () => {
       },
     });
 
-    client = new Client({ name: "metadata-test-client", version: "1.0.0" });
+    client = modernClient("metadata-test-client");
     transport = new StreamableHTTPClientTransport(new URL(address.mcpEndpoint), {
       requestInit: { headers: { authorization: `Bearer ${MCP_TOKEN}` } },
     });
@@ -300,10 +317,10 @@ describe("MCP → Bridge → browser round trip", () => {
     expect(listed.tools).toHaveLength(1);
     expect(listed.tools[0]?.inputSchema).toEqual({ type: "object" });
     expect(listed.tools[0]?.outputSchema).toMatchObject({
-      type: "object",
       properties: { valid: { type: "string" } },
       required: ["valid"],
     });
+    expect(listed.tools[0]?.outputSchema).not.toHaveProperty("type");
     expect(listed.tools[0]?.annotations).toEqual({ destructiveHint: true });
     const resources = await client.listResources();
     expect(resources.resources[0]?.annotations).toEqual({ audience: ["user"], priority: 0.8 });
@@ -322,7 +339,7 @@ describe("MCP → Bridge → browser round trip", () => {
       name: "binary",
       inputSchema: {},
     });
-    client = new Client({ name: "binary-output-client", version: "1.0.0" });
+    client = modernClient("binary-output-client");
     transport = new StreamableHTTPClientTransport(new URL(address.mcpEndpoint), {
       requestInit: { headers: { authorization: `Bearer ${MCP_TOKEN}` } },
     });
@@ -361,15 +378,16 @@ describe("MCP → Bridge → browser round trip", () => {
     browser = new BrowserPeer(address.browserEndpoint, origin);
     const welcome = await browser.open({ kind: "pairing", token: pairing.token });
 
-    client = new Client({ name: "churn-test-client", version: "1.0.0" });
+    client = modernClient("churn-test-client");
     transport = new StreamableHTTPClientTransport(new URL(address.mcpEndpoint), {
       requestInit: { headers: { authorization: `Bearer ${MCP_TOKEN}` } },
     });
     await client.connect(transport);
     let notifications = 0;
-    client.setNotificationHandler(ToolListChangedNotificationSchema, async () => {
+    client.setNotificationHandler("notifications/tools/list_changed", async () => {
       notifications += 1;
     });
+    await client.listen({ toolsListChanged: true });
 
     for (let index = 0; index < 20; index += 1) {
       browser.send(

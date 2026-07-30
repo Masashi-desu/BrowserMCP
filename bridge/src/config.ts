@@ -16,14 +16,12 @@ export interface BridgeLimits {
   readonly maxConcurrentRequestsPerRuntime: number;
   readonly maxHttpBodyBytes: number;
   readonly maxHttpConnections: number;
-  readonly maxMcpSessions: number;
+  readonly maxMcpSubscriptions: number;
   readonly maxRegistrationBytesPerRuntime: number;
   readonly maxRegistrationBytesTotal: number;
   readonly maxRegistrationsPerRuntime: number;
   readonly maxRegistrationsTotal: number;
   readonly maxWebSocketPayloadBytes: number;
-  readonly mcpSessionIdleTtlMs: number;
-  readonly mcpSessionSweepIntervalMs: number;
   readonly pairingTokenTtlMs: number;
   readonly resumeTokenTtlMs: number;
   readonly uiSessionTtlMs: number;
@@ -55,14 +53,12 @@ export const DEFAULT_LIMITS: BridgeLimits = Object.freeze({
   maxConcurrentRequestsPerRuntime: 8,
   maxHttpBodyBytes: 1_048_576,
   maxHttpConnections: 128,
-  maxMcpSessions: 64,
+  maxMcpSubscriptions: 64,
   maxRegistrationBytesPerRuntime: 2_097_152,
   maxRegistrationBytesTotal: 16_777_216,
   maxRegistrationsPerRuntime: 256,
   maxRegistrationsTotal: 2_048,
   maxWebSocketPayloadBytes: 1_048_576,
-  mcpSessionIdleTtlMs: 900_000,
-  mcpSessionSweepIntervalMs: 60_000,
   pairingTokenTtlMs: 120_000,
   resumeTokenTtlMs: 300_000,
   uiSessionTtlMs: 3_600_000,
@@ -224,10 +220,10 @@ export function configFromEnvironment(env: NodeJS.ProcessEnv = process.env): Bri
       DEFAULT_LIMITS.maxHttpConnections,
       "BROWSERMCP_MAX_HTTP_CONNECTIONS",
     ),
-    maxMcpSessions: positiveInteger(
-      env.BROWSERMCP_MAX_MCP_SESSIONS,
-      DEFAULT_LIMITS.maxMcpSessions,
-      "BROWSERMCP_MAX_MCP_SESSIONS",
+    maxMcpSubscriptions: positiveInteger(
+      env.BROWSERMCP_MAX_MCP_SUBSCRIPTIONS,
+      DEFAULT_LIMITS.maxMcpSubscriptions,
+      "BROWSERMCP_MAX_MCP_SUBSCRIPTIONS",
     ),
     maxRegistrationBytesPerRuntime: positiveInteger(
       env.BROWSERMCP_MAX_REGISTRATION_BYTES_PER_RUNTIME,
@@ -253,16 +249,6 @@ export function configFromEnvironment(env: NodeJS.ProcessEnv = process.env): Bri
       env.BROWSERMCP_MAX_WS_PAYLOAD_BYTES,
       DEFAULT_LIMITS.maxWebSocketPayloadBytes,
       "BROWSERMCP_MAX_WS_PAYLOAD_BYTES",
-    ),
-    mcpSessionIdleTtlMs: positiveInteger(
-      env.BROWSERMCP_MCP_SESSION_IDLE_TTL_MS,
-      DEFAULT_LIMITS.mcpSessionIdleTtlMs,
-      "BROWSERMCP_MCP_SESSION_IDLE_TTL_MS",
-    ),
-    mcpSessionSweepIntervalMs: positiveInteger(
-      env.BROWSERMCP_MCP_SESSION_SWEEP_INTERVAL_MS,
-      DEFAULT_LIMITS.mcpSessionSweepIntervalMs,
-      "BROWSERMCP_MCP_SESSION_SWEEP_INTERVAL_MS",
     ),
   };
   if (limits.httpHeadersTimeoutMs > limits.httpRequestTimeoutMs) {

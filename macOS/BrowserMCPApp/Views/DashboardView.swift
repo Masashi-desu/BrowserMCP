@@ -82,7 +82,7 @@ struct DashboardView: View {
         HStack(spacing: 0) {
           MetricView(title: "Apps", value: service.metrics.apps)
           MetricView(title: "Browser", value: service.metrics.browserSessions)
-          MetricView(title: "MCP", value: service.metrics.mcpSessions)
+          MetricView(title: "Subscriptions", value: service.metrics.mcpSubscriptions)
           MetricView(title: "Tools", value: service.metrics.tools)
           MetricView(title: "Resources", value: service.metrics.resources)
           MetricView(title: "Prompts", value: service.metrics.prompts)

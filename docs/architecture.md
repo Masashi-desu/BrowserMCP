@@ -55,10 +55,13 @@ An Origin is scheme, host, and port—not a path. Consequently, GitHub Pages pro
 hostname is the trust-separation mechanism; `app.id`, `runtimeId`, and `instanceId` do not replace
 same-Origin isolation.
 
-An MCP session is independent from a browser session. Each MCP request resolves an unambiguous
-namespaced capability, creates a bounded pending request, and forwards it to the owning browser
-session. Results and safe error data are converted back to standard MCP responses. Disconnecting
-a browser atomically removes its routes and rejects its pending requests.
+MCP request processing is stateless and independent from a browser session. Each `2026-07-28`
+request carries its own protocol/client envelope, receives a fresh MCP server instance, resolves an
+unambiguous namespaced capability, creates a bounded pending request, and forwards it to the owning
+browser session. Results and safe error data are converted back to standard MCP responses.
+`subscriptions/listen` SSE streams are the sole durable MCP transport state and attach to a shared,
+bounded event bus. Disconnecting a browser atomically removes its routes, rejects its pending
+requests, and publishes coalesced list-changed events to matching subscriptions.
 
 The initial implementation keeps runtime state in memory. This is intentional: credentials,
 sessions, pending calls, and registered capabilities cannot survive a bridge restart, so restart

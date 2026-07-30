@@ -101,7 +101,9 @@ it receives no approval credential and persists no authentication state.
 
 The MCP client uses one Streamable HTTP entry at `http://127.0.0.1:8789/mcp` and must send
 `Authorization: Bearer <MCP token printed at this Bridge startup>`. Browser pairing, MCP bearer, and admin
-tokens are separate credentials.
+tokens are separate credentials. The client must pin MCP revision `2026-07-28`; this endpoint is
+stateless and POST-only, with no `initialize`, `Mcp-Session-Id`, `GET`, or `DELETE` compatibility
+path.
 
 On macOS 14+, the native `BrowserMCP.app` is an alternative lifecycle UI for this exact Bridge. Its menu-bar
 item opens a management window that can start/stop/restart the process and show/copy its endpoints and startup

@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "@browsermcp/protocol": "0.1.0",
-    "@modelcontextprotocol/sdk": "1.29.0",
+    "@modelcontextprotocol/server": "2.0.0",
     "ws": "8.21.1"
   },
   "devDependencies": {

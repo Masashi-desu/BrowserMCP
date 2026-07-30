@@ -78,8 +78,8 @@ The native management window additionally provides:
 
 - MCP, Browser, and Status endpoint display and copy actions
 - MCP/admin bearer display with explicit Reveal and Copy controls
-- connected app, Browser session, MCP session, Tool, Resource, and Prompt counts, polled from the
-  bearer-protected `/api/state` endpoint every two seconds
+- connected app, Browser session, MCP notification subscription, Tool, Resource, and Prompt counts,
+  polled from the bearer-protected `/api/state` endpoint every two seconds
 - recent bounded Bridge errors and redacted stderr diagnostics
 - pending exact-Origin approval requests with self-declared app/runtime metadata and expiry, plus
   Approve/Reject actions through the bearer-protected `/api/pairing-requests/:id` endpoint

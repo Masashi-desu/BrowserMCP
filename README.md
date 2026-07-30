@@ -68,7 +68,7 @@ corpus so translations cannot alter executable or protocol meaning.
   for current macOS, Linux, and Windows releases and uses the same CLI, configuration, PEM TLS
   inputs, loopback endpoints, and wire protocols on each.
 - A current stable Safari, Chrome/Chromium, Firefox, or Edge release.
-- An MCP client that supports Streamable HTTP and custom HTTP headers.
+- An MCP client that supports MCP `2026-07-28`, Streamable HTTP, and custom HTTP headers.
 - Loopback HTTP(S) and WebSocket traffic permitted by local security software.
 - The native menu-bar app requires macOS 14 or newer, Node.js 24 or newer, and current stable Xcode
   to build. Node.js is deliberately not embedded in the app.

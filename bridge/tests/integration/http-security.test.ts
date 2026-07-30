@@ -69,7 +69,7 @@ describe("loopback HTTP security and state API", () => {
     });
     expect(browserMcp.status).toBe(403);
 
-    const unknownMcpSession = await fetch(`${base}/mcp`, {
+    const forgedLegacySession = await fetch(`${base}/mcp`, {
       method: "POST",
       headers: {
         authorization: `Bearer ${MCP_TOKEN}`,
@@ -78,7 +78,10 @@ describe("loopback HTTP security and state API", () => {
       },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
     });
-    expect(unknownMcpSession.status).toBe(404);
+    expect(forgedLegacySession.status).toBe(400);
+    await expect(forgedLegacySession.json()).resolves.toMatchObject({
+      error: { code: -32_022, data: { supported: ["2026-07-28"] } },
+    });
 
     expect((await fetch(`${base}/api/state`)).status).toBe(401);
     const stateResponse = await fetch(`${base}/api/state`, {

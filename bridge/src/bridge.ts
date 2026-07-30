@@ -13,7 +13,7 @@ import { InvocationBroker } from "./broker.js";
 import { BrowserGateway } from "./browser-gateway.js";
 import { type BridgeConfig, type BridgeLimits, normalizeBridgeConfig } from "./config.js";
 import { type LogEntry, RingLogger, redact } from "./logger.js";
-import { McpEndpoint } from "./mcp-endpoint.js";
+import { McpEndpoint, MCP_PROTOCOL_VERSION } from "./mcp-endpoint.js";
 import { AllowedOrigins } from "./origins.js";
 import { RecentRequestStore } from "./recent-requests.js";
 import { CapabilityRegistry } from "./registry.js";
@@ -50,7 +50,7 @@ export function configureHttpServer(server: LocalServer, limits: BridgeLimits): 
     limits.httpHeadersTimeoutMs,
     limits.httpRequestTimeoutMs,
   );
-  // Streamable HTTP GET/SSE and browser invocations can legitimately remain active.
+  // Streamable HTTP POST/SSE subscriptions and browser invocations can legitimately remain active.
   // Header/request intake has separate finite deadlines above.
   server.timeout = 0;
 }
@@ -131,10 +131,8 @@ export class BrowserMcpBridge {
     this.#mcp = new McpEndpoint({
       broker: this.#broker,
       logger: this.#logger,
-      maxSessions: normalizedConfig.limits.maxMcpSessions,
+      maxSubscriptions: normalizedConfig.limits.maxMcpSubscriptions,
       registry: this.#registry,
-      sessionIdleTtlMs: normalizedConfig.limits.mcpSessionIdleTtlMs,
-      sessionSweepIntervalMs: normalizedConfig.limits.mcpSessionSweepIntervalMs,
     });
 
     const handler = (request: IncomingMessage, response: ServerResponse) => {
@@ -320,24 +318,29 @@ export class BrowserMcpBridge {
       response.setHeader("www-authenticate", 'Bearer realm="BrowserMCP MCP"');
       throw new HttpError(401, "Unauthorized");
     }
-    if (!request.method || !["POST", "GET", "DELETE"].includes(request.method)) {
-      response.setHeader("allow", "POST, GET, DELETE");
+    if (request.method !== "POST") {
+      response.setHeader("allow", "POST");
       throw new HttpError(405, "Method Not Allowed");
     }
-    const countsTowardConcurrency = request.method === "POST";
+    const contentLength = Number(request.headers["content-length"] ?? 0);
+    if (Number.isFinite(contentLength) && contentLength > this.#config.limits.maxHttpBodyBytes) {
+      throw new HttpError(413, "Payload Too Large");
+    }
+    const body = await this.readJsonBody(request);
+    const countsTowardConcurrency =
+      !body ||
+      typeof body !== "object" ||
+      Array.isArray(body) ||
+      !("method" in body) ||
+      body.method !== "subscriptions/listen";
     if (
       countsTowardConcurrency &&
       this.#activeHttpRequests >= this.#config.limits.maxConcurrentRequests
     ) {
       throw new HttpError(429, "Concurrent request limit reached");
     }
-    const contentLength = Number(request.headers["content-length"] ?? 0);
-    if (Number.isFinite(contentLength) && contentLength > this.#config.limits.maxHttpBodyBytes) {
-      throw new HttpError(413, "Payload Too Large");
-    }
     if (countsTowardConcurrency) this.#activeHttpRequests += 1;
     try {
-      const body = request.method === "POST" ? await this.readJsonBody(request) : undefined;
       await this.#mcp.handle(request, response, body);
     } finally {
       if (countsTowardConcurrency) this.#activeHttpRequests -= 1;
@@ -457,7 +460,13 @@ export class BrowserMcpBridge {
       limits: this.#config.limits,
       allowedOrigins: this.#origins.values(),
       pairingRequests: this.#browser.pendingApprovals(),
-      sessions: { browser: this.#browser.connectionCount, mcp: this.#mcp.sessionCount },
+      sessions: { browser: this.#browser.connectionCount },
+      mcp: {
+        protocolVersion: MCP_PROTOCOL_VERSION,
+        stateless: true,
+        activeRequests: this.#activeHttpRequests,
+        subscriptions: this.#mcp.subscriptionCount,
+      },
     }) as Readonly<Record<string, unknown>>;
   }
 

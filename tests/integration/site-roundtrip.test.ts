@@ -7,8 +7,7 @@ import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { BrowserMcpBridge, DEFAULT_LIMITS, LOOPBACK_HOST } from "@browsermcp/bridge";
 import { BrowserMCP, type WebSocketLike } from "@browsermcp/web";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { describe, expect, it } from "vitest";
 import WebSocket from "ws";
 
@@ -129,7 +128,10 @@ describe("real /site capability registration round trip", () => {
         new WebSocket(url, { ca, origin: ORIGIN }) as unknown as WebSocketLike,
     });
     let registration: SiteRegistration | undefined;
-    const client = new Client({ name: "site-roundtrip-test", version: "1.0.0" });
+    const client = new Client(
+      { name: "site-roundtrip-test", version: "1.0.0" },
+      { versionNegotiation: { mode: { pin: "2026-07-28" } } },
+    );
     const transport = new StreamableHTTPClientTransport(new URL(address.mcpEndpoint), {
       requestInit: { headers: { authorization: `Bearer ${address.mcpToken}` } },
       fetch: trustedHttpsFetch(ca),
@@ -178,6 +180,7 @@ describe("real /site capability registration round trip", () => {
       await registration.ready;
 
       await client.connect(transport);
+      expect(transport.sessionId).toBeUndefined();
 
       const tools = await client.listTools();
       expect(tools.tools).toHaveLength(19);
@@ -245,9 +248,6 @@ describe("real /site capability registration round trip", () => {
       expect(JSON.stringify(promptResult.messages)).toContain("docs_implementation_guide");
       expect(JSON.stringify(promptResult.messages)).toContain("GitHub Pages HTTPS");
     } finally {
-      if (transport.sessionId !== undefined) {
-        await transport.terminateSession().catch(() => undefined);
-      }
       await client.close().catch(() => undefined);
       await app.disconnect({ reason: "Integration test complete" }).catch(() => undefined);
       await registration?.unregister().catch(() => undefined);

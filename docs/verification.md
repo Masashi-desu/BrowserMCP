@@ -10,7 +10,7 @@ or notarization was performed.
 
 | Item | Value |
 | --- | --- |
-| Date | 2026-07-18 |
+| Date | 2026-07-30 |
 | Host | Apple Silicon (`arm64`) Mac |
 | macOS | 26.5.2 |
 | Node.js | 24.10.0 |
@@ -18,7 +18,7 @@ or notarization was performed.
 | Xcode | 26.6; used for the unsigned native macOS app build/tests |
 | TypeScript | 7.0.2, strict mode |
 | Vite | 8.1.5 |
-| MCP SDK | `@modelcontextprotocol/sdk` 1.29.0 |
+| MCP SDK | `@modelcontextprotocol/server` and `@modelcontextprotocol/client` 2.0.0 |
 
 ## Automated quality record
 
@@ -83,7 +83,9 @@ is supplied only to the test clients and the temporary files are removed; system
 changed.
 
 Other Bridge integration tests use real loopback HTTP, HTTPS, WebSocket, WSS, and the official MCP
-client. They cover initialization and session handling, list-changed notifications, all three
+client pinned to revision `2026-07-28`. They cover modern discovery, per-request stateless
+handling, rejection of legacy initialization/session verbs, bounded `subscriptions/listen`,
+list-changed notifications, all three
 primitive kinds, concurrent correlation, dynamic unregister, absence/disconnect, browser error
 conversion, timeout, cancellation, strict Host/Origin, approval accept/reject/expiry and bounds,
 legacy pairing expiry/replay, resume rotation and identity binding, malformed/oversized input,
@@ -108,8 +110,8 @@ as the visible docs.
   was granted, submitted an approval request, and connected after the Bridge operator approved the
   exact observed Origin `https://masashi-desu.github.io`.
 - **Observed MCP result:** The public page registered 19 Tools, 23 Resources, and four Prompts. An
-  official MCP SDK client initialized through the common HTTPS MCP endpoint and invoked the
-  browser-hosted `docs_get_section` Tool successfully. The result identified Origin
+  official MCP SDK client connected with MCP `2026-07-28` through the common HTTPS endpoint and
+  invoked the browser-hosted `docs_get_section` Tool successfully. The result identified Origin
   `https://masashi-desu.github.io`, page `security-model`, section `pairing`, and source
   `docs/specification.md`; the page recorded the successful invocation in recent execution
   history.
@@ -153,15 +155,16 @@ integration or a static Vite build.
 - **Why it is not verified here:** MCP client configuration formats and local-CA behavior differ,
   and changing an installed client's configuration was not requested. The repository does not
   assume control of an external user's client.
-- **Required environment:** A Streamable HTTP MCP client that accepts an endpoint, an
-  `Authorization` header, and the chosen local CA policy.
+- **Required environment:** An MCP `2026-07-28` Streamable HTTP client that accepts an endpoint, an
+  `Authorization` header, `subscriptions/listen`, and the chosen local CA policy.
 - **Reproducible procedure:** Start the Bridge, copy the startup MCP endpoint and MCP bearer into
   one client entry as shown in the root README, connect the browser site, list tools, and invoke the
   exposed name ending in `__docs_search`. In TLS mode, configure system CA use or an explicit CA
   file rather than disabling verification.
-- **Expected result:** One MCP session initializes, all connected-app primitives are listed, the
-  call executes in the tab, and the response returns through the same session. Removing the MCP
-  bearer produces HTTP 401.
+- **Expected result:** Modern discovery succeeds without an MCP session ID, all connected-app
+  primitives are listed through stateless requests, the call executes in the tab, and the response
+  returns to that request. Removing the MCP bearer produces HTTP 401; sending legacy `initialize`,
+  `GET`, or `DELETE` fails.
 
 ### Linux, Windows, and Intel Mac
 
@@ -233,7 +236,7 @@ integration or a static Vite build.
 | Native app starts/stops/restarts Bridge | Met | Child-process lifecycle implementation and tests |
 | Native app detects/selects Node and Bridge | Met | Node 24 validation, bundled single-file Bridge preference, development fallback, and file selection |
 | Native app presents endpoints, pending approvals, credentials, logs, errors | Met | Strictly parsed pending exact-Origin records with Approve/Reject, in-memory ready model, and management window controls; secrets are not persisted |
-| MCP Streamable HTTP works | Met | Official SDK endpoint/client tests over HTTP and HTTPS |
+| MCP Streamable HTTP works | Met | Official SDK v2 endpoint/client tests over HTTP and HTTPS, pinned to `2026-07-28`, including strict legacy rejection and bounded subscriptions |
 | Bidirectional browser connection works | Met locally | Node real WS/WSS integration plus isolated headed Chromium request/approval/session check; published HTTPS browser matrix remains environment-dependent |
 | Dynamic web capability registration | Met | Registry notifications and dynamic unregister tests |
 | MCP client can discover browser capabilities | Met | Lists 19/23/4 real site primitives in the full round trip |

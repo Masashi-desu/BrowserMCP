@@ -37,7 +37,8 @@ containment boundary.
   constructor revalidates and snapshots this host and all limits at runtime, so a JavaScript caller
   or later mutation cannot replace the listener address.
 - Requests require the expected loopback `Host`, mitigating DNS rebinding.
-- MCP authentication is checked for every Streamable HTTP method and session request.
+- MCP authentication is checked on every `POST` before modern `2026-07-28` request dispatch.
+  Legacy `initialize`, session IDs, and `GET`/`DELETE` transport operations are rejected.
 - Browser upgrades are accepted only on the browser path and from a syntactically eligible HTTPS
   Origin or loopback HTTP development Origin. Opening a transport creates no authority. Exact
   equality with the declared Origin is required, and registration is unavailable before approval.

@@ -30,14 +30,17 @@ make the trust boundary difficult to validate. The internal protocol carries app
 identity, origin, registration, cancellation, and reconnection semantics that standard MCP does
 not model for this use case.
 
-## ADR-004: Official MCP SDK at the transport boundary
+## ADR-004: Official MCP SDK v2 at the transport boundary
 
-**Decision:** Use `@modelcontextprotocol/sdk` for Streamable HTTP and MCP message schemas, only in
-the bridge.
+**Decision:** Use the web-standard Fetch handler from `@modelcontextprotocol/server` for modern
+`2026-07-28` Streamable HTTP serving and MCP message schemas, only in the bridge. Adapt its
+`Request`/`Response` face directly to the existing Node HTTP server, and use
+`@modelcontextprotocol/client` in transport integration tests.
 
-**Reason:** Streamable HTTP session and cancellation behavior should track the standard. Keeping
-the dependency out of browser packages prevents standard-MCP types from becoming the internal
-protocol by accident.
+**Reason:** Per-request envelopes, stateless serving, `subscriptions/listen`, cancellation, cache
+hints, and result projection should track the standard. The product is unreleased, so rejecting the
+legacy `initialize` and session lifecycle keeps one implementation path. Keeping the dependency out
+of browser packages prevents standard-MCP types from becoming the internal protocol by accident.
 
 ## ADR-005: WebSocket for the browser transport
 
@@ -93,9 +96,10 @@ Docs MCP handlers.
 **Reason:** DOM scraping loses stable IDs, status, relationships, and source metadata. Structured
 records enable deterministic cross-document search and tests for development-agent use cases.
 
-## ADR-010: Volatile sessions and registrations
+## ADR-010: Volatile subscriptions, browser sessions, and registrations
 
-**Decision:** Do not persist bridge credentials, active sessions, or capability registrations.
+**Decision:** Do not persist bridge credentials, MCP notification subscriptions, active browser/UI
+sessions, or capability registrations.
 
 **Reason:** A restart becomes an explicit revocation boundary and avoids leaving reusable secrets
 on disk. Browser applications reconnect and publish a fresh complete capability snapshot.

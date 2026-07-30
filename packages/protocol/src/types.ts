@@ -162,7 +162,7 @@ export interface PromptMessage {
 export interface ToolInvocationResult {
   kind: "tool";
   content: ProtocolContent[];
-  structuredContent?: JsonObject;
+  structuredContent?: JsonValue;
   isError?: boolean;
 }
 

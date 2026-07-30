@@ -71,7 +71,12 @@ final class BrowserMCPAppTests: XCTestCase {
     let data = try JSONSerialization.data(withJSONObject: [
       "apps": [["id": "docs"]],
       "capabilities": ["tools": ["one", "two"], "resources": ["r"], "prompts": []],
-      "sessions": ["browser": 1, "mcp": 2],
+      "sessions": ["browser": 1],
+      "mcp": [
+        "protocolVersion": "2026-07-28",
+        "stateless": true,
+        "subscriptions": 2,
+      ],
       "pairingRequests": [
         [
           "requestId": "approval-123",
@@ -90,7 +95,7 @@ final class BrowserMCPAppTests: XCTestCase {
     let metrics = try XCTUnwrap(BridgeMetrics.parse(data))
     XCTAssertEqual(metrics.apps, 1)
     XCTAssertEqual(metrics.browserSessions, 1)
-    XCTAssertEqual(metrics.mcpSessions, 2)
+    XCTAssertEqual(metrics.mcpSubscriptions, 2)
     XCTAssertEqual(metrics.tools, 2)
     XCTAssertEqual(metrics.resources, 1)
     XCTAssertEqual(metrics.pairingRequests.count, 1)
@@ -103,7 +108,8 @@ final class BrowserMCPAppTests: XCTestCase {
     let data = try JSONSerialization.data(withJSONObject: [
       "apps": [],
       "capabilities": ["tools": [], "resources": [], "prompts": []],
-      "sessions": ["browser": 0, "mcp": 0],
+      "sessions": ["browser": 0],
+      "mcp": ["protocolVersion": "2026-07-28", "stateless": true, "subscriptions": 0],
       "pairingRequests": [
         [
           "requestId": "../unsafe",

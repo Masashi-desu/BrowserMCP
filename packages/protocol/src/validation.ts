@@ -550,7 +550,7 @@ function validateResult(
       validateContent(entry, `${path}.content[${index}]`);
     });
     if (hasOwn(result, "structuredContent")) {
-      jsonObject(result.structuredContent, `${path}.structuredContent`, context);
+      validateJsonValue(result.structuredContent, `${path}.structuredContent`, context);
     }
     if (hasOwn(result, "isError")) {
       booleanValue(result.isError, `${path}.isError`);

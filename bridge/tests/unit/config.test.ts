@@ -53,16 +53,14 @@ describe("bridge configuration", () => {
       BROWSERMCP_MAX_REGISTRATIONS_TOTAL: "100",
       BROWSERMCP_MAX_REGISTRATION_BYTES_PER_RUNTIME: "4096",
       BROWSERMCP_MAX_REGISTRATION_BYTES_TOTAL: "8192",
-      BROWSERMCP_MAX_MCP_SESSIONS: "4",
-      BROWSERMCP_MCP_SESSION_IDLE_TTL_MS: "5000",
+      BROWSERMCP_MAX_MCP_SUBSCRIPTIONS: "4",
     });
     expect(config.limits).toMatchObject({
       maxRegistrationsPerRuntime: 50,
       maxRegistrationsTotal: 100,
       maxRegistrationBytesPerRuntime: 4096,
       maxRegistrationBytesTotal: 8192,
-      maxMcpSessions: 4,
-      mcpSessionIdleTtlMs: 5000,
+      maxMcpSubscriptions: 4,
     });
   });
 

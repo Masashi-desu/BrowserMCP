@@ -94,7 +94,11 @@ Use the endpoint and MCP token printed at startup. Conceptually:
 }
 ```
 
-`POST`, `GET`, and `DELETE` on `/mcp` all require the bearer token. A high-entropy, in-memory MCP session ID is created by the official `@modelcontextprotocol/sdk` Streamable HTTP transport. Browser-originated MCP requests are rejected; the browser uses `/browser`, not `/mcp`.
+`/mcp` is a modern-only MCP `2026-07-28` endpoint. It accepts authenticated `POST` requests only,
+uses the per-request MCP `_meta` envelope, creates a fresh MCP server instance for every request,
+and never creates an MCP session ID. Legacy `initialize`, `Mcp-Session-Id`, `GET`, and `DELETE`
+flows are rejected. MCP clients must explicitly select revision `2026-07-28`. Browser-originated
+MCP requests are rejected; the browser uses `/browser`, not `/mcp`.
 
 ## Approve a web app
 
@@ -180,7 +184,11 @@ The Bridge keeps a transport-independent registry keyed by browser connection an
 - Duplicate runtime identity or names that collide after MCP-safe normalization are rejected.
 - Disconnect immediately removes every registration owned by that connection and rejects its in-flight requests.
 
-Registry changes produce standard MCP `notifications/tools/list_changed`, `notifications/resources/list_changed`, and `notifications/prompts/list_changed` notifications for active MCP sessions. Churn is coalesced per primitive kind over a 25 ms event-loop window, bounding notification fan-out without delaying discovery materially.
+Registry changes produce standard MCP `notifications/tools/list_changed`,
+`notifications/resources/list_changed`, and `notifications/prompts/list_changed` events through
+explicit `subscriptions/listen` SSE streams. Only subscriptions whose filters request the changed
+primitive receive the event. Churn is coalesced per primitive kind over a 25 ms event-loop window,
+bounding notification fan-out without delaying discovery materially.
 
 ## Limits and cancellation
 
@@ -193,7 +201,7 @@ Defaults are intentionally finite:
 - 16 browser connections;
 - 64 global in-flight browser invocations;
 - 8 invocations per runtime;
-- 64 MCP sessions, with 15 minute idle expiry and a 60 second sweep; active POST/GET/SSE requests are never evicted;
+- 64 durable MCP `subscriptions/listen` streams, bounded independently from ordinary request concurrency;
 - 256 registrations and 2 MiB of serialized registration data per browser runtime;
 - 2,048 registrations and 16 MiB of serialized registration data across the Bridge;
 - 30 second browser invocation timeout;
@@ -203,7 +211,7 @@ Defaults are intentionally finite:
 - 2 minute pairing-token lifetime;
 - 5 minute, rotating resume-token lifetime.
 
-Registration count and byte checks happen before mutation, so a rejected registration never leaves partial state. The default per-runtime count is deliberately above the Docs app's 46-capability set. MCP tool schemas are normalized to an object root and malformed `properties`, `required`, output-schema, or annotation metadata is filtered at the standard MCP boundary, so a browser definition cannot corrupt `tools/list`. Resource annotations are reduced to the valid standard `audience`, `priority`, and `lastModified` subset; protocol-level prompt annotations are intentionally ignored because standard MCP prompts have no annotations field. Browser image/audio data and resource blobs must use canonical Base64, and invocation results are independently checked against the MCP SDK result schemas before returning them.
+Registration count and byte checks happen before mutation, so a rejected registration never leaves partial state. The default per-runtime count is deliberately above the Docs app's 46-capability set. MCP tool input schemas are normalized to an object root; output schemas preserve their valid JSON Schema root shape, including non-object output. Malformed `properties`, `required`, output-schema, or annotation metadata is filtered at the standard MCP boundary, so a browser definition cannot corrupt `tools/list`. Resource annotations are reduced to the valid standard `audience`, `priority`, and `lastModified` subset; protocol-level prompt annotations are intentionally ignored because standard MCP prompts have no annotations field. Browser image/audio data and resource blobs must use canonical Base64, structured Tool output may be any JSON value, and invocation results are independently checked against the MCP SDK result schemas before returning them.
 
 MCP cancellation aborts the pending broker request and sends a Bridge Protocol `cancel` message. Timeout does the same. Late-response tombstones expire after the request timeout, are swept on every insertion/lookup, and are capped at `max(32, 2 × global concurrency)`. Browser `INVOCATION_TIMEOUT` and `INVOCATION_CANCELLED` errors retain their timeout/cancel outcome even when they win a race with the local deadline. Browser errors, disconnects, cancellations, and timeouts are converted to bounded, redacted MCP-safe failures. Resource and prompt failures use standard MCP JSON-RPC errors; tool failures return `isError: true` so an MCP model can recover.
 
@@ -226,9 +234,7 @@ constructor boundary; TypeScript casts cannot bypass them.
 | `BROWSERMCP_MAX_CONCURRENT_PER_RUNTIME` | `8` |
 | `BROWSERMCP_MAX_HTTP_BODY_BYTES` | `1048576` |
 | `BROWSERMCP_MAX_HTTP_CONNECTIONS` | `128` |
-| `BROWSERMCP_MAX_MCP_SESSIONS` | `64` |
-| `BROWSERMCP_MCP_SESSION_IDLE_TTL_MS` | `900000` |
-| `BROWSERMCP_MCP_SESSION_SWEEP_INTERVAL_MS` | `60000` |
+| `BROWSERMCP_MAX_MCP_SUBSCRIPTIONS` | `64` |
 | `BROWSERMCP_MAX_REGISTRATIONS_PER_RUNTIME` | `256` |
 | `BROWSERMCP_MAX_REGISTRATIONS_TOTAL` | `2048` |
 | `BROWSERMCP_MAX_REGISTRATION_BYTES_PER_RUNTIME` | `2097152` |
@@ -273,7 +279,7 @@ npm run test:integration --workspace @browsermcp/bridge
 npm run build --workspace @browsermcp/bridge
 ```
 
-Integration tests use the official MCP client and real loopback HTTP, WebSocket, HTTPS, and WSS servers. They cover initialization/session routing, all three capability kinds, dynamic unregister, browser absence/disconnect, error/timeout/cancel conversion, concurrent correlation, strict Origin, invalid/replayed authentication, malformed messages, resume rotation, Host/bearer/CSRF enforcement, health PNA headers, and TLS certificate use.
+Integration tests use the official MCP client and real loopback HTTP, WebSocket, HTTPS, and WSS servers. They cover modern discovery, stateless request routing, subscription bounds and list-changed delivery, legacy rejection, all three capability kinds, dynamic unregister, browser absence/disconnect, error/timeout/cancel conversion, concurrent correlation, strict Origin, invalid/replayed authentication, malformed messages, resume rotation, Host/bearer/CSRF enforcement, health PNA headers, and TLS certificate use.
 
 All Bridge package scripts use Node.js, TypeScript, or Vitest directly and do not assume a POSIX
 shell. Tests build temporary paths with `node:path`/`node:os`; the TLS generator integration suite
@@ -284,7 +290,7 @@ but are explicitly unverified until recorded on those hosts.
 
 ## Known constraints
 
-- State is intentionally in memory; restarting invalidates MCP/UI sessions, browser resume credentials, and registrations. A tab receiving `BRIDGE_STOPPING` must clear its resume credential and wait for fresh pairing rather than reconnecting with it.
+- State is intentionally in memory; restarting closes MCP notification subscriptions and UI sessions and invalidates browser resume credentials and registrations. A tab receiving `BRIDGE_STOPPING` must clear its resume credential and wait for fresh pairing rather than reconnecting with it.
 - The cross-platform package is a foreground Node.js process. The native macOS app is the provided
   optional lifecycle layer; Linux/Windows shells, OS service installation, release auto-start,
   signing, notarization, and update systems are not provided.

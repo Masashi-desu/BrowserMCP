@@ -17,7 +17,7 @@ struct PairingApprovalRequest: Equatable, Identifiable, Sendable {
 struct BridgeMetrics: Equatable, Sendable {
   var apps = 0
   var browserSessions = 0
-  var mcpSessions = 0
+  var mcpSubscriptions = 0
   var tools = 0
   var resources = 0
   var prompts = 0
@@ -30,6 +30,7 @@ struct BridgeMetrics: Equatable, Sendable {
       let root = object as? [String: Any],
       let capabilities = root["capabilities"] as? [String: Any],
       let sessions = root["sessions"] as? [String: Any],
+      let mcp = root["mcp"] as? [String: Any],
       let pairingRequests = pairingRequests(root["pairingRequests"])
     else { return nil }
 
@@ -47,7 +48,7 @@ struct BridgeMetrics: Equatable, Sendable {
     return BridgeMetrics(
       apps: (root["apps"] as? [Any])?.count ?? 0,
       browserSessions: sessions["browser"] as? Int ?? 0,
-      mcpSessions: sessions["mcp"] as? Int ?? 0,
+      mcpSubscriptions: mcp["subscriptions"] as? Int ?? 0,
       tools: (capabilities["tools"] as? [Any])?.count ?? 0,
       resources: (capabilities["resources"] as? [Any])?.count ?? 0,
       prompts: (capabilities["prompts"] as? [Any])?.count ?? 0,
