@@ -1,8 +1,8 @@
 import { docs, docsById } from "../docs/content.js";
 import { docsStatus, searchDocs } from "../docs/engine.js";
 import type { DocPage, ImplementationStatus, SearchResult } from "../docs/schema.js";
-import { localizedDocPage, localizedDocSection } from "../i18n/docs-content.js";
 import { localizedDocPageTitle, localizedDocSectionTitle } from "../i18n/docs.js";
+import { localizedDocPage, localizedDocSection } from "../i18n/docs-content.js";
 import type { MessageKey, Translator } from "../i18n/index.js";
 import { badge, codeBlock, element, link } from "./dom.js";
 import { routeHref } from "./router.js";
@@ -124,7 +124,15 @@ export const renderDocsIndex = (translator: Translator): HTMLElement => {
   };
   search.addEventListener("input", renderResults);
   renderResults();
-  content.append(element("section", { className: "docs-search-panel" }, [search, results]));
+  content.append(
+    element("section", { className: "docs-search-panel" }, [
+      element("div", { className: "docs-search-command" }, [
+        element("span", { ariaLabel: translator.t("docs.searchLabel") }, ["/"]),
+        search,
+      ]),
+      results,
+    ]),
+  );
 
   content.append(
     element(
@@ -191,7 +199,6 @@ const sectionNode = (
               ? example.title
               : `${localized.title} · ${translator.t("common.codeExample", { language: example.language })}`,
           ]),
-          element("span", {}, [example.language]),
         ]),
         codeBlock(
           example.code,

@@ -1,13 +1,16 @@
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
+import "@fontsource/ibm-plex-mono/600.css";
 import "./styles.css";
 import { BrowserMcpSiteController } from "./browsermcp/controller.js";
-import { defaultBridgeUrl, validateBridgeUrl } from "./runtime/bridge-config.js";
 import {
   applyDocumentLocale,
   createTranslator,
   loadLocale,
-  saveLocale,
   type SupportedLocale,
+  saveLocale,
 } from "./i18n/index.js";
+import { defaultBridgeUrl, validateBridgeUrl } from "./runtime/bridge-config.js";
 import { renderApp } from "./ui/app.js";
 import { createConnectionDraft } from "./ui/connection.js";
 import { parseRoute, type Route, routeSnapshot } from "./ui/router.js";

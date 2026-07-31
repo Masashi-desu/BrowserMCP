@@ -16,7 +16,9 @@
   },
   "dependencies": {
     "@browsermcp/protocol": "0.1.0",
-    "@browsermcp/web": "0.1.0"
+    "@browsermcp/web": "0.1.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "highlight.js": "^11.11.1"
   },
   "devDependencies": {
     "fake-indexeddb": "6.2.5",

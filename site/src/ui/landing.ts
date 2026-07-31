@@ -12,25 +12,49 @@ const feature = (index: string, title: string, text: string): HTMLElement =>
 export const renderLanding = (connectionState: string, translator: Translator): HTMLElement => {
   const main = element("main", { id: "main-content", className: "landing" });
   const hero = element("section", { className: "hero" }, [
-    element("h1", {}, [
-      translator.t("landing.heroBefore"),
-      element("span", { className: "text-gradient" }, [translator.t("landing.heroHighlight")]),
+    element("div", { className: "hero__copy" }, [
+      element("p", { className: "hero__command" }, [
+        element("span", {}, ["$"]),
+        " browsermcp init --runtime web",
+      ]),
+      element("h1", {}, [
+        translator.t("landing.heroBefore"),
+        element("span", { className: "text-gradient" }, [translator.t("landing.heroHighlight")]),
+      ]),
+      element("p", { className: "hero__lede" }, [translator.t("landing.lede")]),
+      element("div", { className: "hero__actions" }, [
+        link(translator.t("landing.readDocs"), routeHref("/docs"), "button button--primary"),
+        link(
+          connectionState === "connected"
+            ? translator.t("common.bridgeConnected")
+            : translator.t("landing.connectBridge"),
+          routeHref("/connection"),
+          "button button--secondary",
+        ),
+      ]),
+      element("div", { className: "hero__proof" }, [
+        element("span", {}, [translator.t("landing.proofEndpoint")]),
+        element("span", {}, [translator.t("landing.proofOrigin")]),
+        element("span", {}, [translator.t("landing.proofBrowser")]),
+      ]),
     ]),
-    element("p", { className: "hero__lede" }, [translator.t("landing.lede")]),
-    element("div", { className: "hero__actions" }, [
-      link(translator.t("landing.readDocs"), routeHref("/docs"), "button button--primary"),
-      link(
-        connectionState === "connected"
-          ? translator.t("common.bridgeConnected")
-          : translator.t("landing.connectBridge"),
-        routeHref("/connection"),
-        "button button--secondary",
+    element("div", { className: "hero__terminal" }, [
+      codeBlock(
+        `browsermcp status --json
+{
+  "bridge": "127.0.0.1:8789",
+  "transport": "streamable-http",
+  "runtime": "browser",
+  "capabilities": {
+    "tools": 19,
+    "resources": 23,
+    "prompts": 4
+  },
+  "state": "ready"
+}`,
+        "shell",
+        "BrowserMCP status command",
       ),
-    ]),
-    element("div", { className: "hero__proof" }, [
-      element("span", {}, [translator.t("landing.proofEndpoint")]),
-      element("span", {}, [translator.t("landing.proofOrigin")]),
-      element("span", {}, [translator.t("landing.proofBrowser")]),
     ]),
   ]);
 

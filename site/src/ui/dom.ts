@@ -1,3 +1,30 @@
+import hljs from "highlight.js/lib/core";
+import bash from "highlight.js/lib/languages/bash";
+import json from "highlight.js/lib/languages/json";
+import typescript from "highlight.js/lib/languages/typescript";
+
+hljs.registerLanguage("bash", bash);
+hljs.registerLanguage("json", json);
+hljs.registerLanguage("typescript", typescript);
+
+const copyText = async (value: string): Promise<void> => {
+  if (navigator.clipboard?.writeText !== undefined) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+  const fallback = document.createElement("textarea");
+  fallback.value = value;
+  fallback.style.position = "fixed";
+  fallback.style.opacity = "0";
+  document.body.append(fallback);
+  try {
+    fallback.select();
+    if (!document.execCommand("copy")) throw new Error("Clipboard copy is unavailable.");
+  } finally {
+    fallback.remove();
+  }
+};
+
 export type Child = Node | string | number | false | null | undefined;
 
 export const element = <K extends keyof HTMLElementTagNameMap>(
@@ -48,10 +75,51 @@ export const codeBlock = (
   language = "text",
   ariaLabel = `${language} code example`,
 ): HTMLElement => {
+  const highlighterLanguage = language === "shell" ? "bash" : language;
+  const highlighted = hljs.getLanguage(highlighterLanguage)
+    ? hljs.highlight(code, { language: highlighterLanguage, ignoreIllegals: true }).value
+    : undefined;
+  const shell = element("figure", { className: "code-shell" });
+  const toolbar = element("figcaption", { className: "code-shell__toolbar" }, [
+    element("span", { className: "code-shell__language" }, [language]),
+  ]);
+  const copyButton = element(
+    "button",
+    {
+      className: "code-copy",
+      title: "Copy code",
+      ariaLabel: "Copy code",
+    },
+    ["copy"],
+  );
+  copyButton.type = "button";
+  copyButton.addEventListener("click", () => {
+    void copyText(code)
+      .then(() => {
+        copyButton.textContent = "copied";
+        copyButton.classList.add("is-copied");
+        window.setTimeout(() => {
+          copyButton.textContent = "copy";
+          copyButton.classList.remove("is-copied");
+        }, 1_800);
+      })
+      .catch(() => {
+        copyButton.textContent = "failed";
+        copyButton.classList.add("is-failed");
+        window.setTimeout(() => {
+          copyButton.textContent = "copy";
+          copyButton.classList.remove("is-failed");
+        }, 1_800);
+      });
+  });
+  toolbar.append(copyButton);
   const pre = element("pre", { className: "code-block", ariaLabel });
-  const codeNode = element("code", { className: `language-${language}` }, [code]);
+  const codeNode = element("code", { className: `hljs language-${language}` });
+  if (highlighted === undefined) codeNode.textContent = code;
+  else codeNode.innerHTML = highlighted;
   pre.append(codeNode);
-  return pre;
+  shell.append(toolbar, pre);
+  return shell;
 };
 
 export const badge = (text: string, variant: string): HTMLElement =>
