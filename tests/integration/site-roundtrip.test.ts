@@ -15,6 +15,7 @@ import {
   registerSiteCapabilities,
   type SiteRegistration,
 } from "../../site/src/browsermcp/registration.js";
+import { RubiksCubeBenchmark } from "../../site/src/runtime/rubiks-cube.js";
 
 const ORIGIN = "https://pages.example.test";
 
@@ -138,6 +139,11 @@ describe("real /site capability registration round trip", () => {
     });
 
     try {
+      const rubiksCube = new RubiksCubeBenchmark({
+        initialScrambleLength: 0,
+        animationDurationMs: 0,
+        random: () => 0.5,
+      });
       registration = registerSiteCapabilities(app, {
         getPageSnapshot: () => ({
           title: "Tools",
@@ -161,6 +167,7 @@ describe("real /site capability registration round trip", () => {
         }),
         getConnectionSnapshot: () => app.getSnapshot(),
         getRegistrationSnapshot: () => app.getRegistrations(),
+        rubiksCube,
       });
       const connecting = app.connect();
       const requestId = await waitForPairingRequest(bridge);
@@ -183,7 +190,7 @@ describe("real /site capability registration round trip", () => {
       expect(transport.sessionId).toBeUndefined();
 
       const tools = await client.listTools();
-      expect(tools.tools).toHaveLength(19);
+      expect(tools.tools).toHaveLength(24);
       const docsSearch = tools.tools.find(({ name }) => name.endsWith("__docs_search"));
       if (docsSearch === undefined) throw new Error("The site did not publish docs_search");
       expect(docsSearch.annotations).toMatchObject({
@@ -206,6 +213,14 @@ describe("real /site capability registration round trip", () => {
         idempotentHint: false,
         openWorldHint: false,
       });
+      const cubeApply = tools.tools.find(({ name }) => name.endsWith("__rubiks_cube_apply_moves"));
+      if (cubeApply === undefined) throw new Error("The site did not publish the cube benchmark");
+      expect(cubeApply.annotations).toMatchObject({
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      });
       const searchResult = await client.callTool({
         name: docsSearch.name,
         arguments: { query: "register a Tool with app.tool", limit: 10 },
@@ -213,9 +228,18 @@ describe("real /site capability registration round trip", () => {
       expect(searchResult.isError).not.toBe(true);
       expect(JSON.stringify(searchResult.structuredContent)).toContain("tool-registration");
       expect(JSON.stringify(searchResult.structuredContent)).toContain("/docs/tools");
+      const cubeResult = await client.callTool({
+        name: cubeApply.name,
+        arguments: { moves: "R U R' U'", animated: false },
+      });
+      expect(cubeResult.isError).not.toBe(true);
+      expect(cubeResult.structuredContent).toMatchObject({
+        appliedMoves: ["R", "U", "R'", "U'"],
+        state: { isSolved: false, faceletOrder: "URFDLB" },
+      });
 
       const resources = await client.listResources();
-      expect(resources.resources).toHaveLength(23);
+      expect(resources.resources).toHaveLength(24);
       const toolsPage = resources.resources.find(
         (resource) =>
           (resource._meta as Record<string, unknown> | undefined)?.["browsermcp/sourceUri"] ===
@@ -234,6 +258,17 @@ describe("real /site capability registration round trip", () => {
       };
       expect(resourcePage.id).toBe("tools");
       expect(JSON.stringify(resourcePage.sections)).toContain("docs/specification.md");
+      const cubeState = resources.resources.find(
+        (resource) =>
+          (resource._meta as Record<string, unknown> | undefined)?.["browsermcp/sourceUri"] ===
+          "browsermcp://benchmark/rubiks-cube/state",
+      );
+      if (cubeState === undefined)
+        throw new Error("The site did not publish the cube state Resource");
+      const cubeResource = await client.readResource({ uri: cubeState.uri });
+      expect(JSON.stringify(cubeResource.contents)).toContain(
+        String((cubeResult.structuredContent as { state?: { stateId?: string } }).state?.stateId),
+      );
 
       const prompts = await client.listPrompts();
       expect(prompts.prompts).toHaveLength(4);

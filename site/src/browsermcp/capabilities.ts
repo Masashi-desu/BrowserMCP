@@ -23,6 +23,7 @@ import {
   troubleshoot,
 } from "../docs/engine.js";
 import { SUPPORTED_LOCALES, type SupportedLocale, type TextDirection } from "../i18n/index.js";
+import { parseCubeMoves, type RubiksCubeBenchmark } from "../runtime/rubiks-cube.js";
 import { getStoredValue, putStoredValue } from "../runtime/storage.js";
 import { analyzeInWorker } from "../runtime/worker-client.js";
 
@@ -53,6 +54,7 @@ export interface SiteCapabilityContext {
   readonly getRuntimeSnapshot: () => SiteRuntimeSnapshot;
   readonly getConnectionSnapshot: () => unknown;
   readonly getRegistrationSnapshot: () => unknown;
+  readonly rubiksCube: RubiksCubeBenchmark;
 }
 
 export interface InvocationContextLike {
@@ -126,6 +128,31 @@ const numberArg = (
   return value;
 };
 
+const booleanArg = (
+  args: Readonly<Record<string, unknown>>,
+  key: string,
+  fallback?: boolean,
+): boolean => {
+  const value = args[key];
+  if (value === undefined && fallback !== undefined) return fallback;
+  if (typeof value !== "boolean") throw new Error(`${key} must be a boolean.`);
+  return value;
+};
+
+const optionalIntegerArg = (
+  args: Readonly<Record<string, unknown>>,
+  key: string,
+  minimum: number,
+  maximum: number,
+): number | undefined => {
+  const value = args[key];
+  if (value === undefined) return undefined;
+  if (!Number.isInteger(value) || typeof value !== "number" || value < minimum || value > maximum) {
+    throw new Error(`${key} must be an integer from ${minimum} to ${maximum}.`);
+  }
+  return value;
+};
+
 const canonicalJson = (value: unknown): JsonValue => {
   if (value === undefined) return null;
   const serialized = JSON.stringify(value);
@@ -187,6 +214,20 @@ const STORAGE_READ_CLEANUP_TOOL_ANNOTATIONS: SiteToolAnnotations = {
   readOnlyHint: false,
   destructiveHint: true,
   // First tampered read rejects/removes; the next returns undefined.
+  idempotentHint: false,
+  openWorldHint: false,
+};
+
+const CUBE_ACTION_TOOL_ANNOTATIONS: SiteToolAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: false,
+};
+
+const CUBE_RESET_TOOL_ANNOTATIONS: SiteToolAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: true,
   idempotentHint: false,
   openWorldHint: false,
 };
@@ -479,6 +520,128 @@ export const createSiteTools = (context: SiteCapabilityContext): readonly SiteTo
         );
       },
     },
+    {
+      name: "rubiks_cube_get_state",
+      description:
+        "Get the canonical state of the shared Three.js Rubik's Cube benchmark without changing it.",
+      inputSchema: objectSchema(),
+      handler: async () => mcpResult(context.rubiksCube.getSnapshot()),
+    },
+    {
+      name: "rubiks_cube_apply_moves",
+      description:
+        "Apply a bounded sequence of canonical U R F D L B face turns to the shared Rubik's Cube.",
+      inputSchema: objectSchema(
+        {
+          moves: { type: "string", minLength: 1, maxLength: 192 },
+          animated: { type: "boolean", default: true },
+          expectedRevision: { type: "integer", minimum: 0 },
+        },
+        ["moves"],
+      ),
+      handler: async (raw, invocation) => {
+        const args = objectArgs(raw);
+        const moves = parseCubeMoves(stringArg(args, "moves", { required: true, max: 192 }) ?? "");
+        if (moves.length > 32) throw new Error("moves must contain at most 32 face turns.");
+        const beforeRevision = context.rubiksCube.getSnapshot().revision;
+        const startedAt = performance.now();
+        const expectedRevision = optionalIntegerArg(
+          args,
+          "expectedRevision",
+          0,
+          Number.MAX_SAFE_INTEGER,
+        );
+        const state = await context.rubiksCube.applyMoves(moves, {
+          animated: booleanArg(args, "animated", true),
+          ...(invocation?.signal === undefined ? {} : { signal: invocation.signal }),
+          ...(expectedRevision === undefined ? {} : { expectedRevision }),
+        });
+        return mcpResult({
+          beforeRevision,
+          afterRevision: state.revision,
+          appliedMoves: moves,
+          durationMs: Math.round(performance.now() - startedAt),
+          state,
+        });
+      },
+    },
+    {
+      name: "rubiks_cube_scramble",
+      description:
+        "Reset and scramble the shared Rubik's Cube with a reproducible legal move sequence.",
+      inputSchema: objectSchema({
+        length: { type: "integer", minimum: 1, maximum: 40, default: 24 },
+        seed: { type: "string", minLength: 1, maxLength: 128 },
+        animated: { type: "boolean", default: true },
+      }),
+      handler: async (raw, invocation) => {
+        const args = objectArgs(raw);
+        const seed = stringArg(args, "seed", { max: 128 });
+        const state = await context.rubiksCube.scramble({
+          length: numberArg(args, "length", 24, 40),
+          animated: booleanArg(args, "animated", true),
+          ...(seed === undefined ? {} : { seed }),
+          ...(invocation?.signal === undefined ? {} : { signal: invocation.signal }),
+        });
+        return mcpResult({
+          seed: state.scramble.seed,
+          scrambleMoves: state.scramble.moves,
+          state,
+        });
+      },
+    },
+    {
+      name: "rubiks_cube_reset",
+      description:
+        "Replace the shared Rubik's Cube state with solved or reproducibly scrambled state.",
+      inputSchema: objectSchema(
+        {
+          mode: { type: "string", enum: ["solved", "scrambled"] },
+          seed: { type: "string", minLength: 1, maxLength: 128 },
+          length: { type: "integer", minimum: 1, maximum: 100, default: 24 },
+        },
+        ["mode"],
+      ),
+      handler: async (raw, invocation) => {
+        invocation?.signal?.throwIfAborted();
+        const args = objectArgs(raw);
+        const mode = stringArg(args, "mode", { required: true, max: 16 });
+        if (mode !== "solved" && mode !== "scrambled") {
+          throw new Error("mode must be solved or scrambled.");
+        }
+        const seed = stringArg(args, "seed", { max: 128 });
+        return mcpResult(
+          context.rubiksCube.reset({
+            mode,
+            ...(seed === undefined ? {} : { seed }),
+            ...(mode === "solved" ? {} : { length: numberArg(args, "length", 24, 100) }),
+          }),
+        );
+      },
+    },
+    {
+      name: "rubiks_cube_set_autoplay",
+      description:
+        "Enable, pause, or retime entropy-biased idle turns for the shared Rubik's Cube.",
+      inputSchema: objectSchema(
+        {
+          enabled: { type: "boolean" },
+          intervalMs: { type: "integer", minimum: 500, maximum: 30_000 },
+        },
+        ["enabled"],
+      ),
+      handler: async (raw, invocation) => {
+        invocation?.signal?.throwIfAborted();
+        const args = objectArgs(raw);
+        const intervalMs = optionalIntegerArg(args, "intervalMs", 500, 30_000);
+        return mcpResult(
+          context.rubiksCube.setAutoplay({
+            enabled: booleanArg(args, "enabled"),
+            ...(intervalMs === undefined ? {} : { intervalMs }),
+          }),
+        );
+      },
+    },
   ];
   return definitions.map((definition) => {
     const schemaProperties = definition.inputSchema.properties;
@@ -496,7 +659,12 @@ export const createSiteTools = (context: SiteCapabilityContext): readonly SiteTo
           ? STORAGE_WRITE_TOOL_ANNOTATIONS
           : definition.name === "site_storage_get"
             ? STORAGE_READ_CLEANUP_TOOL_ANNOTATIONS
-            : READ_ONLY_TOOL_ANNOTATIONS,
+            : definition.name === "rubiks_cube_reset"
+              ? CUBE_RESET_TOOL_ANNOTATIONS
+              : definition.name.startsWith("rubiks_cube_") &&
+                  definition.name !== "rubiks_cube_get_state"
+                ? CUBE_ACTION_TOOL_ANNOTATIONS
+                : READ_ONLY_TOOL_ANNOTATIONS,
       handler: async (raw: unknown, invocation?: InvocationContextLike) => {
         const args = objectArgs(raw);
         if (Object.keys(args).some((key) => !allowedKeys.has(key))) {
@@ -550,6 +718,14 @@ export const createSiteResources = (
           registrations: context.getRegistrationSnapshot(),
           runtime: context.getRuntimeSnapshot(),
         }),
+    },
+    {
+      name: "benchmark.rubiks_cube.state",
+      uri: "browsermcp://benchmark/rubiks-cube/state",
+      description: "Live canonical state shared by both Three.js Rubik's Cube benchmark views.",
+      mimeType: "application/json",
+      handler: async () =>
+        jsonResource("browsermcp://benchmark/rubiks-cube/state", context.rubiksCube.getSnapshot()),
     },
   ];
   return [
@@ -654,7 +830,7 @@ export const createSitePrompts = (): readonly SitePromptDefinition[] => [
 ];
 
 export const SITE_CAPABILITY_COUNTS = {
-  tools: 19,
-  resources: docs.length + 4,
+  tools: 24,
+  resources: docs.length + 5,
   prompts: 4,
 } as const;

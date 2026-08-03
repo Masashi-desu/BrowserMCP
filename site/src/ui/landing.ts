@@ -1,6 +1,7 @@
 import type { Translator } from "../i18n/index.js";
 import { codeBlock, element, link } from "./dom.js";
 import { routeHref } from "./router.js";
+import { createRubiksCubeView } from "./rubiks-cube.js";
 
 const feature = (index: string, title: string, text: string): HTMLElement =>
   element("article", { className: "feature-card" }, [
@@ -38,24 +39,7 @@ export const renderLanding = (connectionState: string, translator: Translator): 
         element("span", {}, [translator.t("landing.proofBrowser")]),
       ]),
     ]),
-    element("div", { className: "hero__terminal" }, [
-      codeBlock(
-        `browsermcp status --json
-{
-  "bridge": "127.0.0.1:8789",
-  "transport": "streamable-http",
-  "runtime": "browser",
-  "capabilities": {
-    "tools": 19,
-    "resources": 23,
-    "prompts": 4
-  },
-  "state": "ready"
-}`,
-        "shell",
-        "BrowserMCP status command",
-      ),
-    ]),
+    element("div", { className: "hero__visual" }, [createRubiksCubeView("hero")]),
   ]);
 
   const architecture = element("section", { className: "section section--architecture" }, [
@@ -64,23 +48,32 @@ export const renderLanding = (connectionState: string, translator: Translator): 
       element("h2", {}, [translator.t("landing.architectureTitle")]),
       element("p", {}, [translator.t("landing.architectureText")]),
     ]),
-    element("div", { className: "flow" }, [
-      element("div", { className: "flow__node" }, [
-        element("span", { className: "flow__label" }, [translator.t("landing.standardMcp")]),
-        element("strong", {}, [translator.t("landing.mcpClient")]),
-        element("small", {}, [translator.t("landing.streamableHttp")]),
+    element("div", { className: "connection-showcase" }, [
+      element("div", { className: "flow" }, [
+        element("div", { className: "flow__node" }, [
+          element("span", { className: "flow__label" }, [translator.t("landing.standardMcp")]),
+          element("strong", {}, [translator.t("landing.mcpClient")]),
+          element("small", {}, [translator.t("landing.streamableHttp")]),
+        ]),
+        element("div", { className: "flow__connector" }, ["→"]),
+        element("div", { className: "flow__node flow__node--bridge" }, [
+          element("span", { className: "flow__label" }, [translator.t("landing.localRouter")]),
+          element("strong", {}, [translator.t("landing.localBridge")]),
+          element("small", {}, ["127.0.0.1 · auth · limits"]),
+        ]),
+        element("div", { className: "flow__connector" }, ["→"]),
+        element("div", { className: "flow__node flow__node--browser" }, [
+          element("span", { className: "flow__label" }, [translator.t("landing.execution")]),
+          element("strong", {}, [translator.t("landing.browserApp")]),
+          element("small", {}, ["Tools · Resources · Prompts"]),
+        ]),
       ]),
-      element("div", { className: "flow__connector" }, ["→"]),
-      element("div", { className: "flow__node flow__node--bridge" }, [
-        element("span", { className: "flow__label" }, [translator.t("landing.localRouter")]),
-        element("strong", {}, [translator.t("landing.localBridge")]),
-        element("small", {}, ["127.0.0.1 · auth · limits"]),
-      ]),
-      element("div", { className: "flow__connector" }, ["→"]),
-      element("div", { className: "flow__node flow__node--browser" }, [
-        element("span", { className: "flow__label" }, [translator.t("landing.execution")]),
-        element("strong", {}, [translator.t("landing.browserApp")]),
-        element("small", {}, ["Tools · Resources · Prompts"]),
+      element("aside", { className: "connection-benchmark" }, [
+        createRubiksCubeView("connection"),
+        element("div", { className: "connection-benchmark__footer" }, [
+          element("span", {}, ["SAME REVISION"]),
+          element("code", {}, ["browsermcp://benchmark/rubiks-cube/state"]),
+        ]),
       ]),
     ]),
   ]);

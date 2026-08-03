@@ -294,8 +294,11 @@ prompts. Results include stable page and section IDs, logical paths, base-indepe
 `href` values, source identifiers, status, constraints, examples, and next references.
 
 In addition, safe site-wide capabilities report page/site/runtime/registration state, demonstrate
-bounded IndexedDB JSON storage, and execute abortable text analysis in a Web Worker. These handlers
-remain in `site`; no site-specific logic is present in the Bridge.
+bounded IndexedDB JSON storage, execute abortable text analysis in a Web Worker, and expose a shared
+Three.js Rubik's Cube benchmark. The benchmark Tools inspect state, apply bounded move sequences,
+scramble or reset the cube, and control autoplay; `browsermcp://benchmark/rubiks-cube/state` exposes
+the live state as a Resource. These handlers remain in `site`; no site-specific logic is present in
+the Bridge.
 
 ## Multiple applications and tabs
 

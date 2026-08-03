@@ -10,7 +10,14 @@ import {
   type BrowserMcpRegistrar,
   registerSiteCapabilities,
 } from "../src/browsermcp/registration.js";
+import { RubiksCubeBenchmark } from "../src/runtime/rubiks-cube.js";
 import { SiteFakeBridge } from "./fake-bridge.js";
+
+const rubiksCube = new RubiksCubeBenchmark({
+  initialScrambleLength: 0,
+  random: () => 0.5,
+  animationDurationMs: 0,
+});
 
 const context: SiteCapabilityContext = {
   getPageSnapshot: () => ({
@@ -35,6 +42,7 @@ const context: SiteCapabilityContext = {
   }),
   getConnectionSnapshot: () => ({ connectionState: "connected", session: { id: "redacted" } }),
   getRegistrationSnapshot: () => SITE_CAPABILITY_COUNTS,
+  rubiksCube,
 };
 
 const tools = createSiteTools(context);
@@ -50,9 +58,18 @@ const data = async (name: string, args: unknown): Promise<unknown> => {
 };
 
 describe("site Tool annotations", () => {
-  it("marks read-only and quota-mutating tools accurately", () => {
+  it("marks read-only, cube-mutating, reset, and quota-mutating tools accurately", () => {
+    const cubeActions = new Set([
+      "rubiks_cube_apply_moves",
+      "rubiks_cube_scramble",
+      "rubiks_cube_set_autoplay",
+    ]);
     for (const definition of tools.filter(
-      ({ name }) => name !== "site_storage_put" && name !== "site_storage_get",
+      ({ name }) =>
+        name !== "site_storage_put" &&
+        name !== "site_storage_get" &&
+        name !== "rubiks_cube_reset" &&
+        !cubeActions.has(name),
     )) {
       expect(definition.annotations).toEqual({
         readOnlyHint: true,
@@ -61,6 +78,20 @@ describe("site Tool annotations", () => {
         openWorldHint: false,
       });
     }
+    for (const name of cubeActions) {
+      expect(tool(name).annotations).toEqual({
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      });
+    }
+    expect(tool("rubiks_cube_reset").annotations).toEqual({
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: false,
+    });
     expect(tool("site_storage_put").annotations).toEqual({
       readOnlyHint: false,
       destructiveHint: true,
@@ -73,6 +104,114 @@ describe("site Tool annotations", () => {
       idempotentHint: false,
       openWorldHint: false,
     });
+  });
+});
+
+describe("Rubik's Cube MCP capabilities", () => {
+  it("keeps apply, get-state, and the live state Resource on one canonical snapshot", async () => {
+    await data("rubiks_cube_reset", { mode: "solved" });
+    const applied = (await data("rubiks_cube_apply_moves", {
+      moves: "R U R' U' F2",
+      animated: false,
+    })) as {
+      readonly appliedMoves: readonly string[];
+      readonly state: Readonly<Record<string, unknown>>;
+    };
+    const toolState = (await data("rubiks_cube_get_state", {})) as Readonly<
+      Record<string, unknown>
+    >;
+    const stateResource = createSiteResources(context).find(
+      ({ uri }) => uri === "browsermcp://benchmark/rubiks-cube/state",
+    );
+    if (stateResource === undefined) throw new Error("Missing Rubik's Cube state Resource");
+    const resourceResult = await stateResource.handler();
+    const resourceContent = resourceResult.contents[0];
+    if (resourceContent === undefined || !("text" in resourceContent)) {
+      throw new Error("Rubik's Cube state Resource was not JSON text");
+    }
+    const resourceState = JSON.parse(resourceContent.text) as Readonly<Record<string, unknown>>;
+
+    expect(applied.appliedMoves).toEqual(["R", "U", "R'", "U'", "F2"]);
+    expect(applied.state).toEqual(toolState);
+    expect(resourceState).toEqual(toolState);
+    expect(toolState).toMatchObject({
+      schemaVersion: 1,
+      cubeSize: 3,
+      faceletOrder: "URFDLB",
+      isSolved: false,
+      phase: "idle",
+      queuedMoves: 0,
+    });
+  });
+
+  it("reproduces seeded reset and scramble states", async () => {
+    const seededReset = (await data("rubiks_cube_reset", {
+      mode: "scrambled",
+      seed: "mcp-repeatable-seed",
+      length: 18,
+    })) as {
+      readonly faceletString: string;
+      readonly stateId: string;
+      readonly scramble: { readonly moves: readonly string[] };
+    };
+    await data("rubiks_cube_reset", { mode: "solved" });
+    const repeatedReset = (await data("rubiks_cube_reset", {
+      mode: "scrambled",
+      seed: "mcp-repeatable-seed",
+      length: 18,
+    })) as typeof seededReset;
+
+    const seededScramble = (await data("rubiks_cube_scramble", {
+      seed: "mcp-repeatable-seed",
+      length: 18,
+      animated: false,
+    })) as {
+      readonly scrambleMoves: readonly string[];
+      readonly state: { readonly faceletString: string; readonly stateId: string };
+    };
+    const repeatedScramble = (await data("rubiks_cube_scramble", {
+      seed: "mcp-repeatable-seed",
+      length: 18,
+      animated: false,
+    })) as typeof seededScramble;
+
+    expect(repeatedReset.faceletString).toBe(seededReset.faceletString);
+    expect(repeatedReset.stateId).toBe(seededReset.stateId);
+    expect(repeatedReset.scramble.moves).toEqual(seededReset.scramble.moves);
+    expect(seededScramble.state.faceletString).toBe(seededReset.faceletString);
+    expect(seededScramble.state.stateId).toBe(seededReset.stateId);
+    expect(seededScramble.scrambleMoves).toEqual(seededReset.scramble.moves);
+    expect(repeatedScramble.state.faceletString).toBe(seededScramble.state.faceletString);
+    expect(repeatedScramble.state.stateId).toBe(seededScramble.state.stateId);
+    expect(repeatedScramble.scrambleMoves).toEqual(seededScramble.scrambleMoves);
+  });
+
+  it("rejects undeclared fields, malformed moves, and bounded cube inputs", async () => {
+    await expect(
+      tool("rubiks_cube_apply_moves").handler({
+        moves: "R",
+        animated: false,
+        undeclared: true,
+      }),
+    ).rejects.toThrow(/not declared/u);
+    await expect(
+      tool("rubiks_cube_apply_moves").handler({ moves: "R X", animated: false }),
+    ).rejects.toThrow(/canonical/u);
+    await expect(
+      tool("rubiks_cube_apply_moves").handler({
+        moves: Array.from({ length: 33 }, () => "R").join(" "),
+        animated: false,
+      }),
+    ).rejects.toThrow(/at most 32/u);
+    await expect(
+      tool("rubiks_cube_scramble").handler({ length: 41, animated: false }),
+    ).rejects.toThrow(/1 to 40/u);
+    await expect(
+      tool("rubiks_cube_reset").handler({ mode: "scrambled", length: 101 }),
+    ).rejects.toThrow(/1 to 100/u);
+    await expect(
+      tool("rubiks_cube_set_autoplay").handler({ enabled: true, intervalMs: 499 }),
+    ).rejects.toThrow(/500 to 30000/u);
   });
 });
 

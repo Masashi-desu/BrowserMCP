@@ -7,6 +7,7 @@ import {
   validateBridgeUrl,
 } from "@browsermcp/web";
 import { connectionDiagnostics } from "../runtime/bridge-config.js";
+import { rubiksCubeBenchmark } from "../runtime/rubiks-cube.js";
 import type { SitePageSnapshot } from "./capabilities.js";
 import type { ConnectionViewModel, SiteConnectionController } from "./controller-types.js";
 import { registerSiteCapabilities, type SiteRegistration } from "./registration.js";
@@ -219,6 +220,7 @@ export class BrowserMcpSiteController implements SiteConnectionController {
       getRuntimeSnapshot: runtimeSnapshot,
       getConnectionSnapshot: () => this.#app.getSnapshot(),
       getRegistrationSnapshot: () => this.#app.getRegistrations(),
+      rubiksCube: rubiksCubeBenchmark,
     });
     void this.#registration.ready.catch(() => undefined);
     this.#unsubscribeApp = this.#app.subscribe((snapshot) => {

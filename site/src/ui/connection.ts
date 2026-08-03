@@ -43,6 +43,12 @@ const statusCard = (label: string, value: string, detail: string): HTMLElement =
     element("small", {}, [detail]),
   ]);
 
+const connectionCube = (): HTMLElement => {
+  const cube = document.createElement("browsermcp-rubiks-cube");
+  cube.setAttribute("variant", "connection");
+  return cube;
+};
+
 const valueKeys: Readonly<Record<string, MessageKey>> = {
   idle: "common.idle",
   connected: "common.connected",
@@ -255,12 +261,24 @@ export const renderConnection = (
 
   main.append(
     element("header", { className: "connection-hero" }, [
-      element("div", {}, [
+      element("div", { className: "connection-hero__copy" }, [
         element("p", { className: "kicker" }, [translator.t("connection.siteRuntime")]),
         element("h1", {}, [translator.t("connection.title")]),
         element("p", {}, [translator.t("connection.lede")]),
       ]),
-      badge(localizedValue(translator, model.connectionState), stateVariant(model.connectionState)),
+      element("div", { className: "connection-hero__visual" }, [
+        badge(
+          localizedValue(translator, model.connectionState),
+          stateVariant(model.connectionState),
+        ),
+        element("aside", { className: "connection-benchmark connection-benchmark--page" }, [
+          connectionCube(),
+          element("div", { className: "connection-benchmark__footer" }, [
+            element("span", {}, ["SAME REVISION"]),
+            element("code", {}, ["browsermcp://benchmark/rubiks-cube/state"]),
+          ]),
+        ]),
+      ]),
     ]),
     element("section", { className: "connection-overview" }, [
       statusCard(

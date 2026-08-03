@@ -57,7 +57,7 @@ Routing uses URL hashes so the static build works on a GitHub Pages repository s
 
 ## Docs MCP
 
-The site registers 19 Tools:
+The site registers 24 Tools:
 
 - `docs_search`, `docs_get_page`, `docs_get_section`
 - `docs_search_api`, `docs_search_types`, `docs_find_examples`
@@ -65,11 +65,14 @@ The site registers 19 Tools:
 - `docs_capabilities`, `docs_related`
 - `site_current_page`, `site_structure`, `site_navigation`, `site_runtime`, `site_status`
 - `site_storage_put`, `site_storage_get`, `site_worker_analyze`
+- `rubiks_cube_get_state`, `rubiks_cube_apply_moves`, `rubiks_cube_scramble`
+- `rubiks_cube_reset`, `rubiks_cube_set_autoplay`
 
-It also registers 23 Resources: the corpus index, status inventory, live page/status snapshots, and one resource
-for each documentation page. Four Prompts cover setup, implementation, diagnosis, and responsibility review.
-Every Docs search result includes page and section IDs, a logical path, a base-independent `#/docs/...` href,
-implementation status, source identifier, related pages, and relevant examples when present.
+It also registers 24 Resources: the corpus index, status inventory, live page/status snapshots,
+`browsermcp://benchmark/rubiks-cube/state`, and one resource for each documentation page. Four Prompts
+cover setup, implementation, diagnosis, and responsibility review. Every Docs search result includes page and
+section IDs, a logical path, a base-independent `#/docs/...` href, implementation status, source identifier,
+related pages, and relevant examples when present.
 
 `site_storage_put` is deliberately narrow. It stores canonical JSON only, limits size/depth/item count,
 rejects secret-like keys and strings at every level, rejects prototype-mutating keys, and uses only this
@@ -189,7 +192,7 @@ real TLS/browser/Bridge path after deployment:
 4. Open `#/connection`, confirm the default is `wss://127.0.0.1:8789/browser`, and run **Check local access**.
 5. Grant LNA if prompted, choose **Request approval**, then approve the exact Origin and app identity
    in the authenticated Bridge management page.
-6. Expect an active session, 19 Tools, 23 Resources, four Prompts, no secret-bearing logs, and a successful
+6. Expect an active session, 24 Tools, 24 Resources, four Prompts, no secret-bearing logs, and a successful
    `docs_search` invocation in recent history.
 7. Configure the MCP client with the startup MCP bearer, list capabilities, and call `docs_get_section` for
    `tools/register-tool`. Expect a browser-produced result containing the exact source page and section.
