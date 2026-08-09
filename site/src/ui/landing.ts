@@ -12,6 +12,9 @@ const feature = (index: string, title: string, text: string): HTMLElement =>
 
 export const renderLanding = (connectionState: string, translator: Translator): HTMLElement => {
   const main = element("main", { id: "main-content", className: "landing" });
+  const architectureCube = createRubiksCubeView("connection");
+  architectureCube.dataset.presentation = "background";
+  architectureCube.setAttribute("aria-hidden", "true");
   const hero = element("section", { className: "hero" }, [
     element("div", { className: "hero__copy" }, [
       element("p", { className: "hero__command" }, [
@@ -55,24 +58,18 @@ export const renderLanding = (connectionState: string, translator: Translator): 
           element("strong", {}, [translator.t("landing.mcpClient")]),
           element("small", {}, [translator.t("landing.streamableHttp")]),
         ]),
-        element("div", { className: "flow__connector" }, ["→"]),
+        element("div", { className: "flow__connector" }, [element("span", {}, ["→"])]),
         element("div", { className: "flow__node flow__node--bridge" }, [
           element("span", { className: "flow__label" }, [translator.t("landing.localRouter")]),
           element("strong", {}, [translator.t("landing.localBridge")]),
           element("small", {}, ["127.0.0.1 · auth · limits"]),
         ]),
-        element("div", { className: "flow__connector" }, ["→"]),
+        element("div", { className: "flow__connector" }, [element("span", {}, ["→"])]),
         element("div", { className: "flow__node flow__node--browser" }, [
           element("span", { className: "flow__label" }, [translator.t("landing.execution")]),
           element("strong", {}, [translator.t("landing.browserApp")]),
           element("small", {}, ["Tools · Resources · Prompts"]),
-        ]),
-      ]),
-      element("aside", { className: "connection-benchmark" }, [
-        createRubiksCubeView("connection"),
-        element("div", { className: "connection-benchmark__footer" }, [
-          element("span", {}, ["SAME REVISION"]),
-          element("code", {}, ["browsermcp://benchmark/rubiks-cube/state"]),
+          architectureCube,
         ]),
       ]),
     ]),

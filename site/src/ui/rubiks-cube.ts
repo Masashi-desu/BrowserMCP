@@ -413,13 +413,13 @@ class RubiksCubeElement extends HTMLElement {
   #revisionValue: HTMLElement | undefined;
   #moveValue: HTMLElement | undefined;
   #autoplayButton: HTMLButtonElement | undefined;
+  #heroBackgroundQuery: MediaQueryList | undefined;
 
   public connectedCallback(): void {
     if (this.#scene !== undefined) return;
     const variant: RubiksCubeViewVariant =
       this.getAttribute("variant") === "connection" ? "connection" : "hero";
     this.className = `cube-view cube-view--${variant}`;
-    this.tabIndex = variant === "hero" ? 0 : -1;
     this.setAttribute("role", "group");
     this.setAttribute(
       "aria-label",
@@ -427,6 +427,11 @@ class RubiksCubeElement extends HTMLElement {
         ? "Interactive Rubik's Cube MCP benchmark"
         : "Synchronized Rubik's Cube connection state",
     );
+    if (variant === "hero") {
+      this.#heroBackgroundQuery = matchMedia("(max-width: 1080px)");
+      this.#heroBackgroundQuery.addEventListener("change", this.#syncHeroMode);
+    }
+    this.#syncHeroMode();
 
     const canvas = element("canvas", "cube-view__canvas");
     canvas.setAttribute("aria-hidden", "true");
@@ -493,8 +498,23 @@ class RubiksCubeElement extends HTMLElement {
     this.#unsubscribe = undefined;
     this.#releaseView?.();
     this.#releaseView = undefined;
+    this.#heroBackgroundQuery?.removeEventListener("change", this.#syncHeroMode);
+    this.#heroBackgroundQuery = undefined;
     this.removeEventListener("keydown", this.#onKeyDown);
   }
+
+  readonly #syncHeroMode = (): void => {
+    const isConnection = this.getAttribute("variant") === "connection";
+    const isBackground =
+      (this.#heroBackgroundQuery?.matches ?? false) || this.dataset.presentation === "background";
+    this.tabIndex = !isConnection && !isBackground ? 0 : -1;
+    if (isBackground) {
+      if (document.activeElement === this) this.blur();
+      this.setAttribute("aria-hidden", "true");
+    } else {
+      this.removeAttribute("aria-hidden");
+    }
+  };
 
   readonly #scramble = (): void => {
     rubiksCubeBenchmark.reset({ mode: "scrambled", length: 24 });
